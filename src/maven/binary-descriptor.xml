@@ -1,0 +1,25 @@
+<assembly>
+    <id>binary</id>
+    <formats>
+        <format>tar.gz</format>
+    </formats>
+    <fileSets>
+        <fileSet>
+            <directory>${project.basedir}</directory>
+            <outputDirectory />
+            <includes>
+                <include>README*</include>
+                <include>LICENSE*</include>
+                <include>NOTICE*</include>
+            </includes>
+        </fileSet>
+        <fileSet>
+            <directory>${project.build.directory}</directory>
+            <outputDirectory />
+            <includes>
+                <include>libs/</include>
+                <include>*.jar</include>
+            </includes>
+        </fileSet>
+    </fileSets>
+</assembly>

@@ -1,0 +1,48 @@
+/**
+ * Copyright (C) 2025 Karlo Mijaljević
+ * <p>
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ * <p>
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ * <p>
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+package xyz.mijaljevic.backup_manager;
+
+/**
+ * Application level defaults.
+ */
+final class Defaults {
+    /**
+     * Environment name where the database pathname is stored.
+     */
+    public static final String DATABASE_ENVIRONMENT_NAME = "BACKUP_DB";
+
+    /**
+     * The default H2 database name to use in case there is no user provided
+     * database pathname.
+     */
+    public static final String DEFAULT_DATABASE_NAME = "./backup.db";
+
+    /**
+     * Default database username.
+     */
+    public static final String DATABASE_USERNAME = "backup";
+
+    /**
+     * Default database password.
+     */
+    public static final String DATABASE_PASSWORD = "backup";
+
+    /**
+     * Default report file name for the compare command.
+     */
+    public static final String DEFAULT_REPORT_NAME = "report.txt";
+}

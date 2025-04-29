@@ -14,7 +14,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-package xyz.mijaljevic;
+package xyz.mijaljevic.backup_manager;
 
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
@@ -57,28 +57,29 @@ class BackupDatabaseTest {
     @BeforeAll
     static void testDatabaseCreation() {
         assertDoesNotThrow(
-                () -> db = new BackupDatabase(
-                        DATABASE_NAME,
-                        DATABASE_USER,
-                        DATABASE_PASSWORD
-                ),
+                () -> {
+                    db = BackupDatabase.BackupDatabaseBuilder.builder()
+                            .setPassword(DATABASE_PASSWORD)
+                            .setUsername(DATABASE_USER)
+                            .setName(DATABASE_NAME)
+                            .build();
+                },
                 "SQL exception occurred while trying to initialize a BackupDatabase"
         );
     }
 
     /**
-     * Tests the insertion of an {@link BackupFile} entity as well as its
-     * deletion.
+     * Tests the database CRUD operations.
      */
     @Test
-    void testBackupFileInsertAndDelete() {
+    void testBackupFileCrud() {
         BackupFile backupFile = new BackupFile();
 
         backupFile.setName("test.txt");
         backupFile.setHash("VERY_MD5_HASH");
         backupFile.setPath("/tmp/test.txt");
         backupFile.setType("text/plain");
-        backupFile.setNoted(LocalDateTime.now());
+        backupFile.setCreated(LocalDateTime.now());
 
         BackupFile createdFile = null;
         try {
@@ -87,6 +88,16 @@ class BackupDatabaseTest {
             assertNotNull(createdFile.getId());
         } catch (SQLException e) {
             fail("Test threw an SQLException while trying to create the backup file entity!");
+        }
+
+        createdFile.setHash("NEW_HASH");
+        createdFile.setType("text/markdown");
+        createdFile.setUpdated(LocalDateTime.now());
+
+        try {
+            assertTrue(db.update(createdFile));
+        } catch (SQLException e) {
+            fail("Test threw an SQLException while trying to update the backup file entity!");
         }
 
         try {
@@ -121,6 +132,12 @@ class BackupDatabaseTest {
 
         if (database.exists()) {
             assertTrue(database.delete(), "Failed to delete the database file!");
+        }
+
+        File traceDatabase = new File(DATABASE_NAME + ".trace.db");
+
+        if (traceDatabase.exists()) {
+            assertTrue(traceDatabase.delete(), "Failed to delete the trace database file!");
         }
     }
 }

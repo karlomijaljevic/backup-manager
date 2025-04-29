@@ -14,14 +14,21 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-package xyz.mijaljevic;
+package xyz.mijaljevic.backup_manager;
 
 import java.time.LocalDateTime;
 import java.util.Objects;
 
 /**
- * Represents a file which is stored in the backup directories as it is stored
- * in the H2 database.
+ * Represents a file in the backup system.
+ * <p>
+ * This class is used to store information about files that are part of the
+ * backup process.
+ * It includes fields for the file's ID, name, hash, path, MIME type, timestamp
+ * when it was noted, and the updated timestamp.
+ * <p>
+ * The class provides getters and setters for each field, as well as overridden
+ * methods for {@code toString()}, {@code equals()}, and {@code hashCode()}.
  */
 final class BackupFile {
     /**
@@ -52,7 +59,12 @@ final class BackupFile {
     /**
      * Timestamp when the file was first noted/detected.
      */
-    private LocalDateTime noted;
+    private LocalDateTime created;
+
+    /**
+     * Timestamp when the file was last updated.
+     */
+    private LocalDateTime updated;
 
     public Long getId() {
         return id;
@@ -94,12 +106,20 @@ final class BackupFile {
         this.type = type;
     }
 
-    public LocalDateTime getNoted() {
-        return noted;
+    public LocalDateTime getCreated() {
+        return created;
     }
 
-    public void setNoted(LocalDateTime noted) {
-        this.noted = noted;
+    public void setCreated(LocalDateTime created) {
+        this.created = created;
+    }
+
+    public LocalDateTime getUpdated() {
+        return updated;
+    }
+
+    public void setUpdated(LocalDateTime updated) {
+        this.updated = updated;
     }
 
     @Override
@@ -110,7 +130,8 @@ final class BackupFile {
                 ", hash='" + hash + '\'' +
                 ", path='" + path + '\'' +
                 ", type='" + type + '\'' +
-                ", noted=" + noted +
+                ", created='" + created + '\'' +
+                ", updated='" + updated + '\'' +
                 '}';
     }
 
@@ -125,11 +146,12 @@ final class BackupFile {
                 && Objects.equals(hash, that.hash)
                 && Objects.equals(path, that.path)
                 && Objects.equals(type, that.type)
-                && Objects.equals(noted, that.noted);
+                && Objects.equals(created, that.created)
+                && Objects.equals(updated, that.updated);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(id, name, hash, path, type, noted);
+        return Objects.hash(id, name, hash, path, type, created, updated);
     }
 }

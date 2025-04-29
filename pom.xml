@@ -44,6 +44,11 @@
             <version>2.3.232</version>
         </dependency>
         <dependency>
+            <groupId>org.apache.tika</groupId>
+            <artifactId>tika-core</artifactId>
+            <version>3.1.0</version>
+        </dependency>
+        <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter-engine</artifactId>
             <version>5.13.0-M2</version>
@@ -78,7 +83,7 @@
                 <configuration>
                     <archive>
                         <manifest>
-                            <mainClass>xyz.mijaljevic.Main</mainClass>
+                            <mainClass>xyz.mijaljevic.backup_manager.Main</mainClass>
                             <addClasspath>true</addClasspath>
                             <classpathPrefix>libs/</classpathPrefix>
                             <addBuildEnvironmentEntries>true</addBuildEnvironmentEntries>
@@ -116,7 +121,7 @@
                             </descriptorRefs>
                             <archive>
                                 <manifest>
-                                    <mainClass>xyz.mijaljevic.Main</mainClass>
+                                    <mainClass>xyz.mijaljevic.backup_manager.Main</mainClass>
                                     <addBuildEnvironmentEntries>true</addBuildEnvironmentEntries>
                                     <useUniqueVersions>false</useUniqueVersions>
                                 </manifest>

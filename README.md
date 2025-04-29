@@ -60,6 +60,43 @@ report will be written to the console. The report file will be created in the
 current working directory with the name `report.txt` unless a different
 pathname is specified using the `-r` option.
 
+### Validate
+
+***Work in progress.***
+
+### Export
+
+***Work in progress.***
+
 ```shell
 backup-manager compare <directory1> <directory2> [-r <report>]
 ```
+
+## Build
+
+To build the project, you need to have Java 21 and Maven installed. You can
+build the project using the following command:
+
+```shell
+mvn clean package
+```
+
+This will create a JAR file in the `target` directory. The dependencies can be
+found in the `libs` directory. You can run the JAR file using the following
+command:
+
+```shell
+java -jar target/backup-manager-1.0-SNAPSHOT.jar
+```
+
+Together with the JAR file, two more files will be created:
+
+- `backup-manager-1.0-SNAPSHOT-jar-with-dependencies.jar`: This is the UBER JAR
+  file that contains all the dependencies of the project.
+- `backup-manager-1.0-SNAPSHOT-binary.tar.gz`: This is a tarball that contains
+  the JAR file and dependencies.
+
+## License
+
+This project is licensed under the GNU General Public License v3.0. See the
+[LICENSE](LICENSE) file for details.

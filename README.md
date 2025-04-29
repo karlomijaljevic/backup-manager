@@ -60,6 +60,10 @@ report will be written to the console. The report file will be created in the
 current working directory with the name `report.txt` unless a different
 pathname is specified using the `-r` option.
 
+```shell
+backup-manager compare <directory1> <directory2> [-r <report>]
+```
+
 ### Validate
 
 ***Work in progress.***
@@ -67,10 +71,6 @@ pathname is specified using the `-r` option.
 ### Export
 
 ***Work in progress.***
-
-```shell
-backup-manager compare <directory1> <directory2> [-r <report>]
-```
 
 ## Build
 

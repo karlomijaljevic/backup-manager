@@ -43,7 +43,7 @@ final class BackupDatabase implements Closeable {
      */
     private BackupDatabase(String name, String username, String password) throws SQLException {
         this.connection = DriverManager.getConnection(
-                Utils.isStringEmpty(name) ? Defaults.DEFAULT_DATABASE_NAME : generateJdbcUrl(name),
+                Utils.isStringEmpty(name) ? generateJdbcUrl(Defaults.DEFAULT_DATABASE_NAME) : generateJdbcUrl(name),
                 Utils.isStringEmpty(username) ? Defaults.DATABASE_USERNAME : username,
                 Utils.isStringEmpty(password) ? Defaults.DATABASE_PASSWORD : password
         );
@@ -394,7 +394,7 @@ final class BackupDatabase implements Closeable {
         ),
         FIND_BY_PATH("""
                      SELECT * FROM backup_files
-                     WHERE path = '?';
+                     WHERE path = ?;
                      """
         );
 

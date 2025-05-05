@@ -21,10 +21,6 @@ import picocli.CommandLine.Option;
 import picocli.CommandLine.Parameters;
 
 import java.io.File;
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.StandardOpenOption;
 import java.time.LocalDateTime;
 import java.util.concurrent.Callable;
 
@@ -127,23 +123,9 @@ final class CompareCommand implements Callable<Integer> {
         baseDirAbsolutePath = base.getAbsolutePath();
         otherDirAbsolutePath = other.getAbsolutePath();
 
-        if (reportFileName == null) {
-            System.out.println("Report will be printed to the console.");
-        } else {
-            reportFileName = reportFileName.isEmpty() ? Defaults.DEFAULT_REPORT_NAME : reportFileName;
-
-            try {
-                Files.newOutputStream(
-                        Path.of(reportFileName),
-                        StandardOpenOption.CREATE,
-                        StandardOpenOption.TRUNCATE_EXISTING
-                ).close();
-
-                System.out.println("Report will be saved to: " + reportFileName);
-            } catch (IOException e) {
-                System.err.println("Error creating report file: " + e.getMessage());
-                return 2;
-            }
+        if (Utils.initReportFile(reportFileName) != 0) {
+            System.err.println("Error: Failed to create report file.");
+            return 2;
         }
 
         prepareReportFile();
@@ -153,18 +135,27 @@ final class CompareCommand implements Callable<Integer> {
             File otherFile = new File(otherDirAbsolutePath + relativePath);
 
             if (!otherFile.exists()) {
-                writeReport("MISS: " + relativePath);
+                Utils.writeReport(reportFileName, "MISS: " + relativePath);
             } else {
                 try {
                     String baseChecksum = Utils.generateMd5Checksum(file);
                     String otherChecksum = Utils.generateMd5Checksum(otherFile);
 
                     if (!baseChecksum.equals(otherChecksum)) {
-                        writeReport("DIFF: " + relativePath);
+                        Utils.writeReport(reportFileName, "DIFF: " + relativePath);
                     }
                 } catch (Exception e) {
                     System.err.println("Error generating checksum for file: " + relativePath);
                 }
+            }
+        });
+
+        Utils.traverseDirectoryRecursively(other, file -> {
+            String relativePath = Utils.resolveAbsoluteParentPathFromChild(otherDirAbsolutePath, file);
+            File baseFile = new File(baseDirAbsolutePath + relativePath);
+
+            if (!baseFile.exists()) {
+                Utils.writeReport(reportFileName, "EXTRA: " + relativePath);
             }
         });
 
@@ -175,31 +166,13 @@ final class CompareCommand implements Callable<Integer> {
      * Prepares the report file by writing the header information.
      */
     private void prepareReportFile() {
-        writeReport("======================= DIFF REPORT ======================");
-        writeReport("Report generated on: " + LocalDateTime.now());
-        writeReport("Base directory: " + baseDirAbsolutePath);
-        writeReport("Other directory: " + otherDirAbsolutePath);
-        writeReport("DIFF - Stands for different files due to MD5 checksum");
-        writeReport("MISS - Stands for missing files in the other directory");
-        writeReport("==========================================================");
-    }
-
-    /**
-     * Prints the content to the report file or console. If the report file
-     * name is not provided during command initialization, the content is
-     * printed to the console.
-     *
-     * @param reportContent The content to be printed.
-     */
-    private void writeReport(String reportContent) {
-        if (reportFileName == null) {
-            System.out.println(reportContent);
-        } else {
-            try {
-                Utils.writeToFile(reportFileName, reportContent);
-            } catch (Exception e) {
-                System.err.println("Error writing to report file: " + e.getMessage());
-            }
-        }
+        Utils.writeReport(reportFileName, "======================= DIFF REPORT ======================");
+        Utils.writeReport(reportFileName, "Report generated on: " + LocalDateTime.now());
+        Utils.writeReport(reportFileName, "Base directory: " + baseDirAbsolutePath);
+        Utils.writeReport(reportFileName, "Other directory: " + otherDirAbsolutePath);
+        Utils.writeReport(reportFileName, "DIFF - Stands for different files due to MD5 checksum");
+        Utils.writeReport(reportFileName, "MISS - Stands for missing files in the other directory");
+        Utils.writeReport(reportFileName, "EXTRA - Stands for extra files in the other directory");
+        Utils.writeReport(reportFileName, "==========================================================");
     }
 }

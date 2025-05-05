@@ -66,7 +66,29 @@ backup-manager compare <directory1> <directory2> [-r <report>]
 
 ### Validate
 
-***Work in progress.***
+The validate command will validate the contents of a directory against the
+H2 database. The directory to be validated is specified as the first argument.
+The command will recursively traverse the directory and compare the contents of
+each file and subdirectory with the entries in the database. Any differences
+will be reported to the console or written to a report file.
+
+The report file can be specified using the `-r` option. If not specified, the
+report will be written to the console. The report file will be created in the
+current working directory with the name `report.txt` unless a different
+pathname is specified using the `-r` option.
+
+The database to be validated against can be specified using the `-b` or
+`--backup` option. If not specified, the default database will be used. The
+username and password for the database can be specified using the `-u` and
+`-p` options, respectively. If not specified, the default username and password
+will be used.
+
+If the database is not specified either by the `-b` option or by the `BACKUP_DB`
+environment variable, the command will return with a non-zero exit code.
+
+```shell
+backup-manager validate <directory> [-b <backup_db>] [-u <username>] [-p <password>] [-r <report>]
+```
 
 ### Export
 

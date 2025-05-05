@@ -20,6 +20,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -33,7 +34,7 @@ final class Utils {
      * Private constructor to prevent instantiation.
      */
     private Utils() {
-        throw new UnsupportedOperationException("Utility class");
+        throw new UnsupportedOperationException("Utility class cannot be instantiated!");
     }
 
     /**
@@ -49,7 +50,7 @@ final class Utils {
 
     /**
      * Removes the parents absolute path from the child file path. Leaving
-     * a relative path to the child file.
+     * a relative path to the child file from the parent.
      *
      * @param parent The parent absolute path
      * @param child  The child file
@@ -128,6 +129,58 @@ final class Utils {
         }
 
         return directory.delete();
+    }
+
+    /**
+     * Initializes the report file by creating it if it does not exist. If the
+     * report file name is null, the report will be printed to the console.
+     *
+     * @param reportFileName The name of the report file
+     * @return 0 if successful, 1 if there was an error
+     */
+    public static int initReportFile(String reportFileName) {
+        if (reportFileName == null) {
+            System.out.println("Report will be printed to the console.");
+        } else {
+            reportFileName = reportFileName.isEmpty() ? Defaults.REPORT_NAME : reportFileName;
+
+            try {
+                Files.newOutputStream(
+                        Path.of(reportFileName),
+                        StandardOpenOption.CREATE,
+                        StandardOpenOption.TRUNCATE_EXISTING
+                ).close();
+
+                System.out.println("Report will be saved to: " + reportFileName);
+            } catch (IOException e) {
+                System.err.println("Error creating report file: " + e.getMessage());
+                return 1;
+            }
+        }
+
+        return 0;
+    }
+
+    /**
+     * Prints the content to the report file or console. If the report file
+     * name is not provided, the content is printed to the console.
+     *
+     * @param reportFileName The name of the report file
+     * @param reportContent  The content to be printed.
+     */
+    public static void writeReport(
+            String reportFileName,
+            String reportContent
+    ) {
+        if (reportFileName == null) {
+            System.out.println(reportContent);
+        } else {
+            try {
+                writeToFile(reportFileName, reportContent);
+            } catch (Exception e) {
+                System.err.println("Error writing to report file: " + e.getMessage());
+            }
+        }
     }
 
     /**

@@ -20,7 +20,6 @@ import java.io.Closeable;
 import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Objects;
 
 /**
  * Represents the H2 database used for backup indexing. Only contains
@@ -43,7 +42,7 @@ final class BackupDatabase implements Closeable {
      */
     private BackupDatabase(String name, String username, String password) throws SQLException {
         this.connection = DriverManager.getConnection(
-                Utils.isStringEmpty(name) ? generateJdbcUrl(Defaults.DEFAULT_DATABASE_NAME) : generateJdbcUrl(name),
+                Utils.isStringEmpty(name) ? generateJdbcUrl(Defaults.DATABASE_NAME) : generateJdbcUrl(name),
                 Utils.isStringEmpty(username) ? Defaults.DATABASE_USERNAME : username,
                 Utils.isStringEmpty(password) ? Defaults.DATABASE_PASSWORD : password
         );
@@ -192,6 +191,29 @@ final class BackupDatabase implements Closeable {
     }
 
     /**
+     * Returns the number of {@link BackupFile} entities in the database.
+     *
+     * @return The number of {@link BackupFile} entities in the database
+     * @throws SQLException in case it fails to count the entities in the
+     *                      database
+     */
+    public long count() throws SQLException {
+        PreparedStatement statement = connection.prepareStatement(SqlCommands.COUNT.sql);
+
+        ResultSet resultSet = statement.executeQuery();
+
+        if (!resultSet.next()) {
+            return 0;
+        }
+
+        long count = resultSet.getLong(1);
+
+        statement.close();
+
+        return count;
+    }
+
+    /**
      * Finds a {@link BackupFile} entity by its path.
      *
      * @param path The path of the file
@@ -231,15 +253,13 @@ final class BackupDatabase implements Closeable {
     }
 
     /**
-     * Generates the H2 JDBC URL {@link String} from the environment or user
-     * variables if they are set and if not uses default ones.
+     * Generates the H2 JDBC URL {@link String} from the user variable.
      *
      * @param name User provided name of the database
      * @return H2 JDBC URL {@link String}
      */
     private String generateJdbcUrl(String name) {
-        String jdbcUrlPrefix = "jdbc:h2:";
-        String dbPahName = System.getenv(Defaults.DATABASE_ENVIRONMENT_NAME);
+        final String jdbcUrlPrefix = "jdbc:h2:";
 
         if (name != null) {
             // H2 does not recommend pure name when creating with JDBC parameters
@@ -248,7 +268,7 @@ final class BackupDatabase implements Closeable {
             sanitizedName = sanitizedName.replaceAll(" ", "-");
 
             return jdbcUrlPrefix + sanitizedName;
-        } else return jdbcUrlPrefix + Objects.requireNonNullElse(dbPahName, Defaults.DEFAULT_DATABASE_NAME);
+        } else throw new NullPointerException("Database name cannot be null!");
     }
 
     /**
@@ -307,6 +327,17 @@ final class BackupDatabase implements Closeable {
      * create a new {@link BackupDatabase} instance.
      */
     static final class BackupDatabaseBuilder {
+        /**
+         * Connection property that  specifies that a connection should only be
+         * completed if the requested database already exists.
+         */
+        private static final String IFEXISTS = "IFEXISTS=TRUE";
+
+        /**
+         * Character used to device properties in the connection string.
+         */
+        private static final String PROPERTY_DIVIDER = ";";
+
         private String name;
         private String username;
         private String password;
@@ -327,6 +358,16 @@ final class BackupDatabase implements Closeable {
 
         public BackupDatabaseBuilder setPassword(String password) {
             this.password = password;
+            return this;
+        }
+
+        /**
+         * Appends the IFEXISTS property to the connection string.
+         *
+         * @return The current instance of the builder
+         */
+        public BackupDatabaseBuilder appendIfExists() {
+            this.name = this.name + PROPERTY_DIVIDER + IFEXISTS;
             return this;
         }
 
@@ -391,6 +432,10 @@ final class BackupDatabase implements Closeable {
              ORDER BY id
              LIMIT ?;
              """
+        ),
+        COUNT("""
+              SELECT COUNT(*) FROM backup_files;
+              """
         ),
         FIND_BY_PATH("""
                      SELECT * FROM backup_files

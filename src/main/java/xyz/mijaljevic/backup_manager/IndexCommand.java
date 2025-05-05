@@ -47,6 +47,12 @@ import java.util.concurrent.Callable;
                       name is provided the command generates a new database
                       during the indexing process in the working directory
                       named backup.db.
+                      
+                      The database username and password are optional. If not
+                      provided, the command will use the default values for
+                      the database. The default values are:
+                      - username: backup
+                      - password: backup
                       """,
         optionListHeading = "%nIndex Options:%n",
         parameterListHeading = "%nParameters:%n",
@@ -132,6 +138,14 @@ final class IndexCommand implements Callable<Integer> {
         rootDirPath = dir.getAbsolutePath();
 
         tika = new Tika();
+
+        if (dbPath == null) {
+            dbPath = System.getenv(Defaults.DATABASE_ENVIRONMENT_NAME);
+
+            if (dbPath == null) {
+                dbPath = Defaults.DATABASE_NAME;
+            }
+        }
 
         try {
             database = BackupDatabaseBuilder.builder()

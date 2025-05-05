@@ -60,7 +60,8 @@ public final class Main {
                           """,
             subcommands = {
                     IndexCommand.class,
-                    CompareCommand.class
+                    CompareCommand.class,
+                    ValidateCommand.class
             }
     )
     final static class MainCommand implements Callable<Integer> {

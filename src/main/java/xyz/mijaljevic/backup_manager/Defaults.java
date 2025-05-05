@@ -26,10 +26,10 @@ final class Defaults {
     public static final String DATABASE_ENVIRONMENT_NAME = "BACKUP_DB";
 
     /**
-     * The default H2 database name to use in case there is no user provided
+     * Default H2 database name to use in case there is no user provided
      * database pathname.
      */
-    public static final String DEFAULT_DATABASE_NAME = "./backup.db";
+    public static final String DATABASE_NAME = "./backup.db";
 
     /**
      * Default database username.
@@ -44,5 +44,5 @@ final class Defaults {
     /**
      * Default report file name for the compare command.
      */
-    public static final String DEFAULT_REPORT_NAME = "report.txt";
+    public static final String REPORT_NAME = "report.txt";
 }

@@ -25,7 +25,6 @@ import java.io.IOException;
 import java.security.NoSuchAlgorithmException;
 import java.sql.SQLException;
 import java.time.LocalDateTime;
-import java.util.List;
 import java.util.concurrent.Callable;
 
 /**
@@ -162,7 +161,7 @@ final class ValidateCommand implements Callable<Integer> {
             dbPath = System.getenv(Defaults.DATABASE_ENVIRONMENT_NAME);
 
             if (dbPath == null) {
-                System.err.println("Please specify database for validation!");
+                System.err.println("Please specify a database for validation!");
                 return 2;
             }
         }
@@ -209,27 +208,17 @@ final class ValidateCommand implements Callable<Integer> {
         });
 
         try {
-            final long count = database.count();
-            final int pageSize = 100;
-            long position = 0;
+            Utils.workOnDatabaseFiles(database, backupFile -> {
+                String sanitizeRootPath = rootDirPath.charAt(rootDirPath.length() - 1) == '/'
+                        ? rootDirPath.substring(0, rootDirPath.length() - 1)
+                        : rootDirPath;
 
-            while (position <= count) {
-                List<BackupFile> files = database.page(position, pageSize);
+                File file = new File(sanitizeRootPath + backupFile.getPath());
 
-                files.forEach(backupFile -> {
-                    String sanitizeRootPath = rootDirPath.charAt(rootDirPath.length() - 1) == '/'
-                            ? rootDirPath.substring(0, rootDirPath.length() - 1)
-                            : rootDirPath;
-
-                    File file = new File(sanitizeRootPath + backupFile.getPath());
-
-                    if (!file.exists()) {
-                        Utils.writeReport(reportFileName, "MISS: " + backupFile.getPath());
-                    }
-                });
-
-                position += pageSize;
-            }
+                if (!file.exists()) {
+                    Utils.writeReport(reportFileName, "MISS: " + backupFile.getPath());
+                }
+            });
         } catch (SQLException e) {
             System.err.println("SQL exception while validating: " + e.getMessage());
         } finally {

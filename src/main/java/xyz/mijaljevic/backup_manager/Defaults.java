@@ -16,6 +16,8 @@
  */
 package xyz.mijaljevic.backup_manager;
 
+import java.time.format.DateTimeFormatter;
+
 /**
  * Application level defaults.
  */
@@ -45,4 +47,14 @@ final class Defaults {
      * Default report file name for the compare command.
      */
     public static final String REPORT_NAME = "report.txt";
+
+    /**
+     * Date format to use for the exported file name.
+     */
+    public static final DateTimeFormatter EXPORT_FILE_FORMAT = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+
+    /**
+     * Date format to use for the exported data.
+     */
+    public static final DateTimeFormatter EXPORT_DATA_FORMAT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 }

@@ -22,55 +22,45 @@ import org.junit.jupiter.api.Test;
 import picocli.CommandLine;
 
 import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.sql.SQLException;
+import java.time.LocalDateTime;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
- * Test class for the validate command of the {@link ValidateCommand} class.
+ * Test class for the export command of the {@link ExportCommand} class.
  */
-final class ValidateCommandTest {
+final class ExportCommandTest {
     /**
      * Database name for testing.
      */
     private static final String DATABASE_NAME = "./test.db";
 
     /**
-     * Name of the test directory for validation testing.
-     */
-    private static final String TEST_DIRECTORY = "test-directory";
-
-    /**
-     * Prepares the test environment for validation by creating a test
-     * directory with a couple of files.
+     * Prepares the test environment for export testing.
      */
     @BeforeAll
     static void prepareTestEnvironment() {
-        File testDir = new File(TEST_DIRECTORY);
-        assertTrue(testDir.mkdirs(), "Failed to create test directory!");
-
-        File first = new File(testDir, "file1.txt");
-        File second = new File(testDir, "file2.txt");
-
-        assertDoesNotThrow(
-                () -> {
-                    first.createNewFile();
-                    second.createNewFile();
-                },
-                "Failed to create test files!"
-        );
-
-        File subDir = new File(testDir, "sub-directory");
-        assertTrue(subDir.mkdirs(), "Failed to create sub-directory!");
-
-        File subFile = new File(subDir, "subFile.txt");
-
-        assertDoesNotThrow(subFile::createNewFile, "Failed to create test files!");
-
         try {
             BackupDatabase database = BackupDatabase.BackupDatabaseBuilder.builder()
                     .setName(DATABASE_NAME)
                     .build();
+
+            for (int i = 0; i < 10; i++) {
+                BackupFile backupFile = new BackupFile();
+
+                backupFile.setName("test_file_" + i);
+                backupFile.setPath("path_" + i);
+                backupFile.setHash("hash_" + i);
+                backupFile.setType("type_" + i);
+                backupFile.setCreated(LocalDateTime.now());
+                backupFile.setUpdated(LocalDateTime.now());
+
+                database.save(backupFile);
+            }
 
             database.close();
         } catch (SQLException e) {
@@ -79,19 +69,27 @@ final class ValidateCommandTest {
     }
 
     /**
-     * Tests the validate command.
+     * Tests the export command.
      */
     @Test
     void testValidation() {
-        String[] args = {"validate", "-b", DATABASE_NAME, TEST_DIRECTORY};
+        String[] args = {"export", DATABASE_NAME};
 
         CommandLine commandLine = new CommandLine(new Main.MainCommand());
 
         assertEquals(
                 0,
                 commandLine.execute(args),
-                "Validate command should have been executed successfully!"
+                "Export command should have been executed successfully!"
         );
+
+        String path = LocalDateTime.now().format(Defaults.EXPORT_FILE_FORMAT) + "_test.xlsx";
+
+        try {
+            assertTrue(Files.deleteIfExists(Paths.get(path)));
+        } catch (IOException e) {
+            fail("Failed to delete file: " + e.getMessage());
+        }
     }
 
     /**
@@ -99,15 +97,6 @@ final class ValidateCommandTest {
      */
     @AfterAll
     static void cleanup() {
-        File testDir = new File(TEST_DIRECTORY);
-
-        assertTrue(
-                Utils.deleteDirectoryRecursively(testDir),
-                "Failed to delete the test directory!"
-        );
-
-        assertFalse(testDir.exists(), "Failed to delete the test directory!");
-
         File database = new File(DATABASE_NAME + ".mv.db");
 
         if (database.exists()) {

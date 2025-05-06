@@ -42,7 +42,9 @@ public final class Main {
      */
     @Command(
             mixinStandardHelpOptions = true,
-            version = "1.0-SNAPSHOT",
+            usageHelpAutoWidth = true,
+            descriptionHeading = "%nDescription:%n",
+            version = "1.0",
             description = """
                           Simple backup manager to check and compare RADI-0
                           backups. There are a couple of usages for this
@@ -61,7 +63,8 @@ public final class Main {
             subcommands = {
                     IndexCommand.class,
                     CompareCommand.class,
-                    ValidateCommand.class
+                    ValidateCommand.class,
+                    ExportCommand.class
             }
     )
     final static class MainCommand implements Callable<Integer> {

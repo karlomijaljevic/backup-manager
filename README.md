@@ -23,6 +23,38 @@ Lastly the default username and password for the H2 database are:
 While the default database name is `backup`. You can change the default
 database path/name by setting the `BACKUP_DB` environment variable.
 
+## Current Status
+
+The project is in a working state. The following features are implemented:
+
+- Indexing directories into an H2 database
+- Comparing two directories and reporting differences
+- Validating a directory against the H2 database and reporting differences
+- Exporting the H2 database to an `.xlsx` file
+
+The project is built using Java 21 and Maven. The dependencies are managed
+using Maven. The project uses the following dependencies:
+
+- H2 Database Engine
+- Picocli
+- Apache Tika
+- fastexcel
+- JUnit 5 (for testing)
+
+Currently, the project is considered stable and ready for use. However, there
+may be some bugs or issues that need to be fixed. If you encounter any issues,
+please report them on the issues page.
+
+## Future Plans
+
+The project is in a working state. The following features are planned for the
+future:
+
+- More robust logging
+- More time tracking for task execution
+- Optimizations for large directories
+- Better tests
+
 ## Usage
 
 ### Index
@@ -92,7 +124,23 @@ backup-manager validate <directory> [-b <backup_db>] [-u <username>] [-p <passwo
 
 ### Export
 
-***Work in progress.***
+The export command will export the contents of the H2 database to an `.xlsx`
+file. The database to be exported is specified as the first and only argument.
+The command will create an `.xlsx` file in the current working directory with
+the name `yyyy-MM-dd_DB-NAME.xlsx`. The database name will be replaced with the
+name of the database being exported. The date will be the current date.
+
+If the database name is not specified, the command will look for the `BACKUP_DB`
+environment variable. If the environment variable is not set, the command will
+return with a non-zero exit code.
+
+If the database requires a username and password, they can be specified using the
+`-u` and `-p` options, respectively. If not specified, the default username and
+password will be used.
+
+```shell
+backup-manager export <backup_db> [-u <username>] [-p <password>]
+```
 
 ## Build
 

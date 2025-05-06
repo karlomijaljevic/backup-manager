@@ -24,6 +24,8 @@ import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.sql.SQLException;
+import java.util.List;
 import java.util.function.Consumer;
 
 /**
@@ -176,7 +178,28 @@ final class Utils {
             System.out.println(reportContent);
         } else {
             try {
-                writeToFile(reportFileName, reportContent);
+                File fileToWrite = new File(reportFileName);
+
+                if (!fileToWrite.exists()) {
+                    System.err.println("Error: File does not exist.");
+                    return;
+                }
+
+                try {
+                    Files.writeString(
+                            fileToWrite.toPath(),
+                            reportContent,
+                            StandardOpenOption.APPEND
+                    );
+
+                    Files.writeString(
+                            fileToWrite.toPath(),
+                            System.lineSeparator(),
+                            StandardOpenOption.APPEND
+                    );
+                } catch (IOException e) {
+                    System.err.println("Error writing to file: " + e.getMessage());
+                }
             } catch (Exception e) {
                 System.err.println("Error writing to report file: " + e.getMessage());
             }
@@ -184,35 +207,27 @@ final class Utils {
     }
 
     /**
-     * Writes the content to a file by appending it to the end of the file. The
-     * file must exist and be writable. If the file does not exist, an error
-     * message is printed.
+     * Iterates over all database files in chunks and applies the provided
+     * callback to each file.
      *
-     * @param file    The name of the file
-     * @param content The content to write to the report file
+     * @param database The database to iterate over
+     * @param callback The callback to apply to each file
+     * @throws SQLException If a database error occurs
      */
-    public static void writeToFile(String file, String content) {
-        File fileToWrite = new File(file);
+    public static void workOnDatabaseFiles(
+            BackupDatabase database,
+            Consumer<BackupFile> callback
+    ) throws SQLException {
+        final long count = database.count();
+        final int pageSize = 100;
+        long position = 0;
 
-        if (!fileToWrite.exists()) {
-            System.err.println("Error: File does not exist.");
-            return;
-        }
+        while (position <= count) {
+            List<BackupFile> files = database.page(position, pageSize);
 
-        try {
-            Files.writeString(
-                    fileToWrite.toPath(),
-                    content,
-                    StandardOpenOption.APPEND
-            );
+            files.forEach(callback);
 
-            Files.writeString(
-                    fileToWrite.toPath(),
-                    System.lineSeparator(),
-                    StandardOpenOption.APPEND
-            );
-        } catch (IOException e) {
-            System.err.println("Error writing to file: " + e.getMessage());
+            position += pageSize;
         }
     }
 }

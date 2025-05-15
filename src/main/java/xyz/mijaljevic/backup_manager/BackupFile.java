@@ -42,7 +42,7 @@ final class BackupFile {
     private String name;
 
     /**
-     * MD5 hash of the file.
+     * CRC32 hash of the file.
      */
     private String hash;
 

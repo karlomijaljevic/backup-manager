@@ -17,21 +17,27 @@
 package xyz.mijaljevic.backup_manager;
 
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
-import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.sql.SQLException;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.List;
 import java.util.function.Consumer;
+import java.util.zip.CRC32;
 
 /**
  * Utility class for various helper methods.
  */
 final class Utils {
+    /**
+     * Default buffer size for file operations.
+     */
+    private static final int BUFFER_SIZE = 65536;
+
     /**
      * Private constructor to prevent instantiation.
      */
@@ -63,34 +69,25 @@ final class Utils {
     }
 
     /**
-     * Generates a MD5 checksum {@link String} from the provided file.
+     * Generates a CRC-32 checksum for the given file.
      *
-     * @param file A {@link File} for whom to generate a checksum.
-     * @return A MD5 checksum {@link String}
-     * @throws IOException              In case a file operation fails
-     * @throws NoSuchAlgorithmException In case the MD5 algorithm is not supported.
+     * @param file The file to generate the checksum for
+     * @return The CRC-32 checksum as a hexadecimal string
+     * @throws IOException If an I/O error occurs
      */
-    public static String generateMd5Checksum(File file) throws IOException, NoSuchAlgorithmException {
-        MessageDigest md = MessageDigest.getInstance("MD5");
+    public static String generateCrc32Checksum(File file) throws IOException {
+        CRC32 crc = new CRC32();
 
-        try (InputStream is = Files.newInputStream(file.toPath())) {
-            byte[] buffer = new byte[8192];
+        try (FileInputStream fis = new FileInputStream(file)) {
+            byte[] buffer = new byte[BUFFER_SIZE];
             int bytesRead;
 
-            while ((bytesRead = is.read(buffer)) != -1) {
-                md.update(buffer, 0, bytesRead);
+            while ((bytesRead = fis.read(buffer)) != -1) {
+                crc.update(buffer, 0, bytesRead);
             }
         }
 
-        byte[] digest = md.digest();
-
-        StringBuilder hexString = new StringBuilder();
-
-        for (byte b : digest) {
-            hexString.append(String.format("%02x", b & 0xff));
-        }
-
-        return hexString.toString().toUpperCase();
+        return String.format("%08X", crc.getValue()).toUpperCase();
     }
 
     /**
@@ -229,5 +226,48 @@ final class Utils {
 
             position += pageSize;
         }
+    }
+
+    /**
+     * Reports the exit code and calculates the time taken for the program to
+     * execute. It also prints a message indicating the duration of the
+     * program.
+     * <p>
+     * Depending on the exit code, it will print the message to either the
+     * standard output or the error output stream. Any non-zero exit code
+     * indicates an error.
+     *
+     * @param start    The start time of the program
+     * @param exitCode The exit code of the program
+     * @param message  The message to print
+     * @return The exit code of the program
+     */
+    public static int reportExitAndCalculateTime(
+            Instant start,
+            int exitCode,
+            String message
+    ) {
+        long duration = Duration.between(start, Instant.now()).toMillis();
+        String response = "Program lasted for ";
+
+        if (duration < 1000) {
+            response = response + duration + " ms";
+        } else if (duration < 60000) {
+            response = response + (duration / 1000) + " s";
+        } else if (duration < 3600000) {
+            response = response + (duration / 60000) + " min";
+        } else {
+            response = response + (duration / 3600000) + " h";
+        }
+
+        if (exitCode != 0) {
+            System.err.println(message);
+        } else {
+            System.out.println(message);
+        }
+
+        System.out.println(response);
+
+        return exitCode;
     }
 }

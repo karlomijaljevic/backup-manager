@@ -138,8 +138,8 @@ final class CompareCommand implements Callable<Integer> {
                 Utils.writeReport(reportFileName, "MISS: " + relativePath);
             } else {
                 try {
-                    String baseChecksum = Utils.generateMd5Checksum(file);
-                    String otherChecksum = Utils.generateMd5Checksum(otherFile);
+                    String baseChecksum = Utils.generateCrc32Checksum(file);
+                    String otherChecksum = Utils.generateCrc32Checksum(otherFile);
 
                     if (!baseChecksum.equals(otherChecksum)) {
                         Utils.writeReport(reportFileName, "DIFF: " + relativePath);
@@ -170,7 +170,7 @@ final class CompareCommand implements Callable<Integer> {
         Utils.writeReport(reportFileName, "Report generated on: " + LocalDateTime.now());
         Utils.writeReport(reportFileName, "Base directory: " + baseDirAbsolutePath);
         Utils.writeReport(reportFileName, "Other directory: " + otherDirAbsolutePath);
-        Utils.writeReport(reportFileName, "DIFF - Stands for different files due to MD5 checksum");
+        Utils.writeReport(reportFileName, "DIFF - Stands for different files due to CRC32 checksum");
         Utils.writeReport(reportFileName, "MISS - Stands for missing files in the other directory");
         Utils.writeReport(reportFileName, "EXTRA - Stands for extra files in the other directory");
         Utils.writeReport(reportFileName, "==========================================================");

@@ -76,7 +76,7 @@ class BackupDatabaseTest {
         BackupFile backupFile = new BackupFile();
 
         backupFile.setName("test.txt");
-        backupFile.setHash("VERY_MD5_HASH");
+        backupFile.setHash("VERY_CRC32_HASH");
         backupFile.setPath("/tmp/test.txt");
         backupFile.setType("text/plain");
         backupFile.setCreated(LocalDateTime.now());

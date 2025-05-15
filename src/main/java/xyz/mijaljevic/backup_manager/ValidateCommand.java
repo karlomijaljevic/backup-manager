@@ -22,7 +22,6 @@ import picocli.CommandLine.Parameters;
 
 import java.io.File;
 import java.io.IOException;
-import java.security.NoSuchAlgorithmException;
 import java.sql.SQLException;
 import java.time.LocalDateTime;
 import java.util.concurrent.Callable;
@@ -194,7 +193,7 @@ final class ValidateCommand implements Callable<Integer> {
                 if (backupFile == null) {
                     Utils.writeReport(reportFileName, "EXTRA: " + relativePath);
                 } else {
-                    String checksum = Utils.generateMd5Checksum(file);
+                    String checksum = Utils.generateCrc32Checksum(file);
 
                     if (!checksum.equals(backupFile.getHash())) {
                         Utils.writeReport(reportFileName, "DIFF: " + relativePath);
@@ -202,7 +201,7 @@ final class ValidateCommand implements Callable<Integer> {
                 }
             } catch (SQLException e) {
                 System.err.println("SQL exception while validating: " + e.getMessage());
-            } catch (IOException | NoSuchAlgorithmException e) {
+            } catch (IOException e) {
                 System.err.println("IO exception while validating: " + e.getMessage());
             }
         });
@@ -236,7 +235,7 @@ final class ValidateCommand implements Callable<Integer> {
         Utils.writeReport(reportFileName, "Report generated on: " + LocalDateTime.now());
         Utils.writeReport(reportFileName, "Directory: " + rootDirPath);
         Utils.writeReport(reportFileName, "Database: " + dbPath);
-        Utils.writeReport(reportFileName, "DIFF - Stands for different files due to MD5 checksum");
+        Utils.writeReport(reportFileName, "DIFF - Stands for different files due to CRC32 checksum");
         Utils.writeReport(reportFileName, "MISS - Stands for missing files in the directory");
         Utils.writeReport(reportFileName, "EXTRA - Stands for extra files in the directory");
         Utils.writeReport(reportFileName, "==========================================================");

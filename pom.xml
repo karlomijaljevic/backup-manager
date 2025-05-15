@@ -7,7 +7,7 @@
     <groupId>xyz.mijaljevic</groupId>
     <artifactId>backup-manager</artifactId>
     <name>backup-manager</name>
-    <version>1.0</version>
+    <version>1.1</version>
     <packaging>jar</packaging>
 
     <description>

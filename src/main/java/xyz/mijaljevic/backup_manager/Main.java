@@ -58,7 +58,7 @@ public final class Main {
                           
                           Most common use-case is to check if files on one external
                           drive match files on the other by comparing them. This
-                          compares all MD5 file hashes and reports differences.
+                          compares all CRC32 file hashes and reports differences.
                           """,
             subcommands = {
                     IndexCommand.class,

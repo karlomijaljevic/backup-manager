@@ -24,8 +24,8 @@ import xyz.mijaljevic.backup_manager.BackupDatabase.BackupDatabaseBuilder;
 
 import java.io.File;
 import java.io.IOException;
-import java.security.NoSuchAlgorithmException;
 import java.sql.SQLException;
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.concurrent.Callable;
 
@@ -128,11 +128,15 @@ final class IndexCommand implements Callable<Integer> {
      */
     @Override
     public Integer call() {
+        Instant start = Instant.now();
         File dir;
 
         if (directory == null || !(dir = new File(directory)).isDirectory()) {
-            System.err.println("Please specify directory for indexing!");
-            return 1;
+            return Utils.reportExitAndCalculateTime(
+                    start,
+                    1,
+                    "Please specify directory for indexing!"
+            );
         }
 
         rootDirPath = dir.getAbsolutePath();
@@ -161,7 +165,7 @@ final class IndexCommand implements Callable<Integer> {
                     BackupFile backupFile = database.findByPath(path);
 
                     if (backupFile != null) {
-                        backupFile.setHash(Utils.generateMd5Checksum(file));
+                        backupFile.setHash(Utils.generateCrc32Checksum(file));
                         backupFile.setType(tika.detect(file));
                         backupFile.setUpdated(LocalDateTime.now());
 
@@ -170,26 +174,33 @@ final class IndexCommand implements Callable<Integer> {
                         backupFile = new BackupFile();
 
                         backupFile.setName(file.getName());
-                        backupFile.setHash(Utils.generateMd5Checksum(file));
+                        backupFile.setHash(Utils.generateCrc32Checksum(file));
                         backupFile.setPath(Utils.resolveAbsoluteParentPathFromChild(rootDirPath, file));
                         backupFile.setType(tika.detect(file));
                         backupFile.setCreated(LocalDateTime.now());
 
                         database.save(backupFile);
                     }
-                } catch (IOException | NoSuchAlgorithmException | SQLException e) {
+                } catch (IOException | SQLException e) {
                     System.err.println("Error while indexing file: " + file.getAbsolutePath() + " - " + e.getMessage());
                 }
             });
         } catch (SQLException e) {
-            System.err.println("Database error: " + e.getMessage());
-            return 2;
+            return Utils.reportExitAndCalculateTime(
+                    start,
+                    2,
+                    "Database error: " + e.getMessage()
+            );
         } finally {
             if (database != null) {
                 database.close();
             }
         }
 
-        return 0;
+        return Utils.reportExitAndCalculateTime(
+                start,
+                0,
+                "Successfully indexed directory: " + rootDirPath
+        );
     }
 }

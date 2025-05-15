@@ -26,6 +26,7 @@ import java.sql.SQLException;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
+import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.zip.CRC32;
 
@@ -92,22 +93,41 @@ final class Utils {
 
     /**
      * Traverses a directory and all of its subdirectories. For each file in
-     * the directory, the provided callback is called. No operation is executed
-     * on directories.
+     * the directory, the provided file callback is called. The directory
+     * callback is called for each directory once it starts being processed and
+     * once it is finished processing.
+     * <p>
+     * This method is recursive and will traverse all subdirectories. Note that
+     * the directory callback will not be called for the root directory.
      *
-     * @param directory The root directory to traverse
-     * @param callback  The callback to call for each file
+     * @param directory         The root directory to traverse
+     * @param fileCallback      The {@link Consumer} callback to call for each
+     *                          file. The parameter is the file to process.
+     * @param directoryCallback The {@link BiConsumer }callback to call for
+     *                          each directory once it starts being processed
+     *                          and is finished processing. The first parameter
+     *                          is the directory and the second parameter is a
+     *                          boolean indicating if the directory is being
+     *                          processed or has been finished processing. If
+     *                          true, the directory is being processed. If false,
+     *                          the directory has been finished processing.
      */
-    public static void traverseDirectoryRecursively(File directory, Consumer<File> callback) {
+    public static void traverseDirectoryRecursively(
+            File directory,
+            Consumer<File> fileCallback,
+            BiConsumer<File, Boolean> directoryCallback
+    ) {
         File[] files = directory.listFiles();
 
         if (files == null) return;
 
         for (File file : files) {
             if (file.isDirectory()) {
-                traverseDirectoryRecursively(file, callback);
+                directoryCallback.accept(file, true);
+                traverseDirectoryRecursively(file, fileCallback, directoryCallback);
+                directoryCallback.accept(file, false);
             } else {
-                callback.accept(file);
+                fileCallback.accept(file);
             }
         }
     }
@@ -139,7 +159,7 @@ final class Utils {
      */
     public static int initReportFile(String reportFileName) {
         if (reportFileName == null) {
-            System.out.println("Report will be printed to the console.");
+            Logger.info("Report will be printed to the console.");
         } else {
             reportFileName = reportFileName.isEmpty() ? Defaults.REPORT_NAME : reportFileName;
 
@@ -150,9 +170,9 @@ final class Utils {
                         StandardOpenOption.TRUNCATE_EXISTING
                 ).close();
 
-                System.out.println("Report will be saved to: " + reportFileName);
+                Logger.info("Report will be saved to: " + reportFileName);
             } catch (IOException e) {
-                System.err.println("Error creating report file: " + e.getMessage());
+                Logger.error("Error creating report file: " + e.getMessage());
                 return 1;
             }
         }
@@ -172,33 +192,29 @@ final class Utils {
             String reportContent
     ) {
         if (reportFileName == null) {
-            System.out.println(reportContent);
+            Logger.info(reportContent);
         } else {
+            File fileToWrite = new File(reportFileName);
+
+            if (!fileToWrite.exists()) {
+                Logger.error("Error: File does not exist.");
+                return;
+            }
+
             try {
-                File fileToWrite = new File(reportFileName);
+                Files.writeString(
+                        fileToWrite.toPath(),
+                        reportContent,
+                        StandardOpenOption.APPEND
+                );
 
-                if (!fileToWrite.exists()) {
-                    System.err.println("Error: File does not exist.");
-                    return;
-                }
-
-                try {
-                    Files.writeString(
-                            fileToWrite.toPath(),
-                            reportContent,
-                            StandardOpenOption.APPEND
-                    );
-
-                    Files.writeString(
-                            fileToWrite.toPath(),
-                            System.lineSeparator(),
-                            StandardOpenOption.APPEND
-                    );
-                } catch (IOException e) {
-                    System.err.println("Error writing to file: " + e.getMessage());
-                }
-            } catch (Exception e) {
-                System.err.println("Error writing to report file: " + e.getMessage());
+                Files.writeString(
+                        fileToWrite.toPath(),
+                        System.lineSeparator(),
+                        StandardOpenOption.APPEND
+                );
+            } catch (IOException e) {
+                Logger.error("Error writing to file: " + e.getMessage());
             }
         }
     }
@@ -242,7 +258,7 @@ final class Utils {
      * @param message  The message to print
      * @return The exit code of the program
      */
-    public static int reportExitAndCalculateTime(
+    public static int processExitAndCalculateTime(
             Instant start,
             int exitCode,
             String message
@@ -261,12 +277,12 @@ final class Utils {
         }
 
         if (exitCode != 0) {
-            System.err.println(message);
+            Logger.error(message);
         } else {
-            System.out.println(message);
+            Logger.info(message);
         }
 
-        System.out.println(response);
+        Logger.info(response);
 
         return exitCode;
     }

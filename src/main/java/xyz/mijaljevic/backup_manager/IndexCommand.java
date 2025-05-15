@@ -94,6 +94,26 @@ final class IndexCommand implements Callable<Integer> {
     )
     String password;
 
+    @Option(
+            names = {"-v", "--verbose"},
+            description = """
+                          Enable verbose output. This will print the name of
+                          each file as it is indexed. If you wish to print only
+                          directory names, use the -d option.
+                          """
+    )
+    boolean verbose;
+
+    @Option(
+            names = {"-d", "--directory"},
+            description = """
+                          Enable directory output. This will print the name of
+                          each directory as it is indexed. If you wish to print
+                          file names as well, use the -v option.
+                          """
+    )
+    boolean directoryOutput;
+
     /**
      * Directory pathname to index.
      */
@@ -132,7 +152,7 @@ final class IndexCommand implements Callable<Integer> {
         File dir;
 
         if (directory == null || !(dir = new File(directory)).isDirectory()) {
-            return Utils.reportExitAndCalculateTime(
+            return Utils.processExitAndCalculateTime(
                     start,
                     1,
                     "Please specify directory for indexing!"
@@ -160,6 +180,8 @@ final class IndexCommand implements Callable<Integer> {
 
             Utils.traverseDirectoryRecursively(dir, file -> {
                 try {
+                    if (verbose) Logger.info("Indexing file: " + file.getName());
+
                     String path = Utils.resolveAbsoluteParentPathFromChild(rootDirPath, file);
 
                     BackupFile backupFile = database.findByPath(path);
@@ -182,11 +204,18 @@ final class IndexCommand implements Callable<Integer> {
                         database.save(backupFile);
                     }
                 } catch (IOException | SQLException e) {
-                    System.err.println("Error while indexing file: " + file.getAbsolutePath() + " - " + e.getMessage());
+                    Logger.error("Error while indexing file: " + file.getAbsolutePath() + " - " + e.getMessage());
+                }
+            }, (directory, processing) -> {
+                if (verbose || directoryOutput) {
+                    String message = processing
+                            ? "Indexing directory: "
+                            : "Finished indexing directory: ";
+                    Logger.info(message + directory.getName());
                 }
             });
         } catch (SQLException e) {
-            return Utils.reportExitAndCalculateTime(
+            return Utils.processExitAndCalculateTime(
                     start,
                     2,
                     "Database error: " + e.getMessage()
@@ -197,7 +226,7 @@ final class IndexCommand implements Callable<Integer> {
             }
         }
 
-        return Utils.reportExitAndCalculateTime(
+        return Utils.processExitAndCalculateTime(
                 start,
                 0,
                 "Successfully indexed directory: " + rootDirPath

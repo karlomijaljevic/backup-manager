@@ -23,6 +23,7 @@ import picocli.CommandLine.Parameters;
 import java.io.File;
 import java.io.IOException;
 import java.sql.SQLException;
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.concurrent.Callable;
 
@@ -119,6 +120,26 @@ final class ValidateCommand implements Callable<Integer> {
     )
     String reportFileName;
 
+    @Option(
+            names = {"-v", "--verbose"},
+            description = """
+                          Enable verbose output. This will print the name of
+                          each file as it is validated. If you wish to print
+                          only directory names, use the -d option.
+                          """
+    )
+    boolean verbose;
+
+    @Option(
+            names = {"-d", "--directory"},
+            description = """
+                          Enable directory output. This will print the name of
+                          each directory as it is validated. If you wish to
+                          print file names as well, use the -v option.
+                          """
+    )
+    boolean directoryOutput;
+
     /**
      * Directory pathname to validate.
      */
@@ -147,11 +168,15 @@ final class ValidateCommand implements Callable<Integer> {
      */
     @Override
     public Integer call() {
+        Instant start = Instant.now();
         File dir;
 
         if (directory == null || !(dir = new File(directory)).isDirectory()) {
-            System.err.println("Please specify directory for validation!");
-            return 1;
+            return Utils.processExitAndCalculateTime(
+                    start,
+                    1,
+                    "Please specify directory for validation!"
+            );
         }
 
         rootDirPath = dir.getAbsolutePath();
@@ -160,8 +185,11 @@ final class ValidateCommand implements Callable<Integer> {
             dbPath = System.getenv(Defaults.DATABASE_ENVIRONMENT_NAME);
 
             if (dbPath == null) {
-                System.err.println("Please specify a database for validation!");
-                return 2;
+                return Utils.processExitAndCalculateTime(
+                        start,
+                        2,
+                        "Please specify database for validation!"
+                );
             }
         }
 
@@ -173,18 +201,26 @@ final class ValidateCommand implements Callable<Integer> {
                     .appendIfExists()
                     .build();
         } catch (SQLException e) {
-            System.err.println("Failed to connect to the database: " + e.getMessage());
-            return 2;
+            return Utils.processExitAndCalculateTime(
+                    start,
+                    2,
+                    "Failed to connect to the database: " + e.getMessage()
+            );
         }
 
         if (Utils.initReportFile(reportFileName) != 0) {
-            System.err.println("Error: Failed to create report file.");
-            return 3;
+            return Utils.processExitAndCalculateTime(
+                    start,
+                    3,
+                    "Failed to create report file!"
+            );
         }
 
         prepareReportFile();
 
         Utils.traverseDirectoryRecursively(dir, file -> {
+            if (verbose) Logger.info("Validating file: " + file.getName());
+
             String relativePath = Utils.resolveAbsoluteParentPathFromChild(rootDirPath, file);
 
             try {
@@ -200,9 +236,16 @@ final class ValidateCommand implements Callable<Integer> {
                     }
                 }
             } catch (SQLException e) {
-                System.err.println("SQL exception while validating: " + e.getMessage());
+                Logger.error("SQL exception while validating: " + e.getMessage());
             } catch (IOException e) {
-                System.err.println("IO exception while validating: " + e.getMessage());
+                Logger.error("IO exception while validating: " + e.getMessage());
+            }
+        }, (directory, processing) -> {
+            if (verbose || directoryOutput) {
+                String message = processing
+                        ? "Validating directory: "
+                        : "Finished validating directory: ";
+                Logger.info(message + directory.getName());
             }
         });
 
@@ -219,12 +262,16 @@ final class ValidateCommand implements Callable<Integer> {
                 }
             });
         } catch (SQLException e) {
-            System.err.println("SQL exception while validating: " + e.getMessage());
+            Logger.error("SQL exception while validating: " + e.getMessage());
         } finally {
             database.close();
         }
 
-        return 0;
+        return Utils.processExitAndCalculateTime(
+                start,
+                0,
+                "Successfully validated directory: " + rootDirPath
+        );
     }
 
     /**

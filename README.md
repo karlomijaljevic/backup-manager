@@ -45,15 +45,19 @@ Currently, the project is considered stable and ready for use. However, there
 may be some bugs or issues that need to be fixed. If you encounter any issues,
 please report them on the issues page.
 
-## Future Plans
+## Note
 
-The project is in a working state. The following features are planned for the
-future:
+The hashing algorithm used to check for differences is CRC32. This is a fast
+and efficient algorithm that is suitable for checking the integrity of files.
+However, it is not suitable for cryptographic purposes. If you need a more
+secure hashing algorithm, you can change the hashing algorithm in the code.
 
-- More robust logging
-- More time tracking for task execution
-- Optimizations for large directories
-- Better tests
+Verbose is disabled by default. You can enable it by providing the `-v` or
+`--verbose` option. This will enable verbose output for the given command. If
+you wish to only see the currently processed directory and not the files
+you can provide the `-d` or `--directory` option. This will only show the
+directory name and not the files. This is useful if you have a lot of files,
+and you only want to see the directories being processed.
 
 ## Usage
 

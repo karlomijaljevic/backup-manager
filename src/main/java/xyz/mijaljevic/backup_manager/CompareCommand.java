@@ -21,6 +21,7 @@ import picocli.CommandLine.Option;
 import picocli.CommandLine.Parameters;
 
 import java.io.File;
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.concurrent.Callable;
 
@@ -54,15 +55,6 @@ import java.util.concurrent.Callable;
 )
 final class CompareCommand implements Callable<Integer> {
     /**
-     * Directory pathnames to compare.
-     */
-    @Parameters(
-            paramLabel = "DIRECTORY",
-            description = "Pathnames of the directories to compare"
-    )
-    String[] directory;
-
-    /**
      * Report file name.
      */
     @Option(
@@ -76,6 +68,35 @@ final class CompareCommand implements Callable<Integer> {
                           """
     )
     String reportFileName;
+
+    @Option(
+            names = {"-v", "--verbose"},
+            description = """
+                          Enable verbose output. This will print the name of
+                          each file as it is compared. If you wish to print
+                          only directory names, use the -d option.
+                          """
+    )
+    boolean verbose;
+
+    @Option(
+            names = {"-d", "--directory"},
+            description = """
+                          Enable directory output. This will print the name of
+                          each directory as it is compared. If you wish to
+                          print file names as well, use the -v option.
+                          """
+    )
+    boolean directoryOutput;
+
+    /**
+     * Directory pathnames to compare.
+     */
+    @Parameters(
+            paramLabel = "DIRECTORY",
+            description = "Pathnames of the directories to compare"
+    )
+    String[] directory;
 
     /**
      * Base directory absolute path.
@@ -95,15 +116,23 @@ final class CompareCommand implements Callable<Integer> {
      */
     @Override
     public Integer call() {
+        Instant start = Instant.now();
+
         if (directory == null || directory.length != 2) {
-            System.err.println("Error: Two directories must be specified.");
-            return 1;
+            return Utils.processExitAndCalculateTime(
+                    start,
+                    1,
+                    "Two directories must be specified."
+            );
         }
 
         for (String dir : directory) {
             if (Utils.isStringEmpty(dir)) {
-                System.err.println("Error: Directory not specified or invalid.");
-                return 1;
+                return Utils.processExitAndCalculateTime(
+                        start,
+                        1,
+                        "Directory not specified or invalid."
+                );
             }
         }
 
@@ -111,26 +140,37 @@ final class CompareCommand implements Callable<Integer> {
         File other = new File(directory[1]);
 
         if (!base.exists() || !base.isDirectory()) {
-            System.err.println("Error: Base directory does not exist or is not a directory.");
-            return 1;
+            return Utils.processExitAndCalculateTime(
+                    start,
+                    1,
+                    "Base directory does not exist or is not a directory."
+            );
         }
 
         if (!other.exists() || !other.isDirectory()) {
-            System.err.println("Error: Other directory does not exist or is not a directory.");
-            return 1;
+            return Utils.processExitAndCalculateTime(
+                    start,
+                    1,
+                    "Other directory does not exist or is not a directory."
+            );
         }
 
         baseDirAbsolutePath = base.getAbsolutePath();
         otherDirAbsolutePath = other.getAbsolutePath();
 
         if (Utils.initReportFile(reportFileName) != 0) {
-            System.err.println("Error: Failed to create report file.");
-            return 2;
+            return Utils.processExitAndCalculateTime(
+                    start,
+                    2,
+                    "Failed to create report file."
+            );
         }
 
         prepareReportFile();
 
         Utils.traverseDirectoryRecursively(base, file -> {
+            if (verbose) Logger.info("Comparing file: " + file.getName());
+
             String relativePath = Utils.resolveAbsoluteParentPathFromChild(baseDirAbsolutePath, file);
             File otherFile = new File(otherDirAbsolutePath + relativePath);
 
@@ -145,21 +185,39 @@ final class CompareCommand implements Callable<Integer> {
                         Utils.writeReport(reportFileName, "DIFF: " + relativePath);
                     }
                 } catch (Exception e) {
-                    System.err.println("Error generating checksum for file: " + relativePath);
+                    Logger.error("Error generating checksum for file: " + relativePath);
                 }
+            }
+        }, (directory, processing) -> {
+            if (verbose || directoryOutput) {
+                String message = processing
+                        ? "Comparing directory: "
+                        : "Finished comparing directory: ";
+                Logger.info(message + directory.getName());
             }
         });
 
         Utils.traverseDirectoryRecursively(other, file -> {
+            if (verbose) Logger.info("Checking for extra file: " + file.getName());
+
             String relativePath = Utils.resolveAbsoluteParentPathFromChild(otherDirAbsolutePath, file);
             File baseFile = new File(baseDirAbsolutePath + relativePath);
 
-            if (!baseFile.exists()) {
-                Utils.writeReport(reportFileName, "EXTRA: " + relativePath);
+            if (!baseFile.exists()) Utils.writeReport(reportFileName, "EXTRA: " + relativePath);
+        }, (directory, processing) -> {
+            if (verbose || directoryOutput) {
+                String message = processing
+                        ? "Processing other root for extra files in directory: "
+                        : "Finished processing other root for extra files in directory: ";
+                Logger.info(message + directory.getName());
             }
         });
 
-        return 0;
+        return Utils.processExitAndCalculateTime(
+                start,
+                0,
+                "Successfully compared directories."
+        );
     }
 
     /**

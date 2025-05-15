@@ -27,6 +27,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.sql.SQLException;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.util.concurrent.Callable;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -88,6 +89,16 @@ final class ExportCommand implements Callable<Integer> {
     )
     String password;
 
+    @Option(
+            names = {"-v", "--verbose"},
+            description = """
+                          Enable verbose output. This will print the name of
+                          each file as it is validated. If you wish to print
+                          only directory names, use the -d option.
+                          """
+    )
+    boolean verbose;
+
     /**
      * Database pathname to use for export.
      */
@@ -113,12 +124,17 @@ final class ExportCommand implements Callable<Integer> {
      */
     @Override
     public Integer call() {
+        Instant start = Instant.now();
+
         if (dbPath == null || "NOT_SET".equals(dbPath)) {
             dbPath = System.getenv(Defaults.DATABASE_ENVIRONMENT_NAME);
 
             if (dbPath == null) {
-                System.err.println("Please specify a database to export!");
-                return 1;
+                return Utils.processExitAndCalculateTime(
+                        start,
+                        1,
+                        "Please specify a database to export!"
+                );
             }
         }
 
@@ -132,8 +148,11 @@ final class ExportCommand implements Callable<Integer> {
                     .appendIfExists()
                     .build();
         } catch (SQLException e) {
-            System.err.println("Failed to connect to the database: " + e.getMessage());
-            return 2;
+            return Utils.processExitAndCalculateTime(
+                    start,
+                    2,
+                    "Failed to connect to the database: " + e.getMessage()
+            );
         }
 
         String[] dbTokens = dbPath.split(Pattern.quote(File.separator));
@@ -169,6 +188,8 @@ final class ExportCommand implements Callable<Integer> {
             sheet.value(0, 6, "Updated");
 
             Utils.workOnDatabaseFiles(database, backupFile -> {
+                if (verbose) Logger.info("Exporting file: " + backupFile.getName());
+
                 int row = rowAccumulator.getAndIncrement();
 
                 sheet.value(row, 0, backupFile.getId());
@@ -183,15 +204,25 @@ final class ExportCommand implements Callable<Integer> {
             workbook.finish();
             workbook.close();
         } catch (SQLException e) {
-            System.err.println("SQL exception while exporting: " + e.getMessage());
-            return 3;
+            return Utils.processExitAndCalculateTime(
+                    start,
+                    3,
+                    "SQL exception while exporting: " + e.getMessage()
+            );
         } catch (IOException e) {
-            System.err.println("IO exception while exporting: " + e.getMessage());
-            return 4;
+            return Utils.processExitAndCalculateTime(
+                    start,
+                    4,
+                    "IO exception while exporting: " + e.getMessage()
+            );
         } finally {
             database.close();
         }
 
-        return 0;
+        return Utils.processExitAndCalculateTime(
+                start,
+                0,
+                "Successfully exported database: " + dbPath
+        );
     }
 }

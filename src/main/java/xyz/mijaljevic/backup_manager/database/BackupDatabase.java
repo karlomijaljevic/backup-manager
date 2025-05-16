@@ -14,7 +14,10 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-package xyz.mijaljevic.backup_manager;
+package xyz.mijaljevic.backup_manager.database;
+
+import xyz.mijaljevic.backup_manager.Defaults;
+import xyz.mijaljevic.backup_manager.utilities.Utils;
 
 import java.io.Closeable;
 import java.sql.*;
@@ -25,7 +28,7 @@ import java.util.List;
  * Represents the H2 database used for backup indexing. Only contains
  * operations tied to the {@link BackupFile} entity and nothing else.
  */
-final class BackupDatabase implements Closeable {
+public final class BackupDatabase implements Closeable {
     /**
      * Database {@link Connection} used to execute statements.
      */
@@ -326,7 +329,7 @@ final class BackupDatabase implements Closeable {
      * Builder class for the {@link BackupDatabase} class. It is used to
      * create a new {@link BackupDatabase} instance.
      */
-    static final class BackupDatabaseBuilder {
+    public static final class BackupDatabaseBuilder {
         /**
          * Connection property that  specifies that a connection should only be
          * completed if the requested database already exists.

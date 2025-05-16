@@ -14,11 +14,16 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-package xyz.mijaljevic.backup_manager;
+package xyz.mijaljevic.backup_manager.commands;
 
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 import picocli.CommandLine.Parameters;
+import xyz.mijaljevic.backup_manager.Defaults;
+import xyz.mijaljevic.backup_manager.utilities.Utils;
+import xyz.mijaljevic.backup_manager.utilities.Logger;
+import xyz.mijaljevic.backup_manager.database.BackupDatabase;
+import xyz.mijaljevic.backup_manager.database.BackupFile;
 
 import java.io.File;
 import java.io.IOException;

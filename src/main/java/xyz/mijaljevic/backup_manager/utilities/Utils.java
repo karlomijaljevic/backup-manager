@@ -14,7 +14,11 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-package xyz.mijaljevic.backup_manager;
+package xyz.mijaljevic.backup_manager.utilities;
+
+import xyz.mijaljevic.backup_manager.Defaults;
+import xyz.mijaljevic.backup_manager.database.BackupDatabase;
+import xyz.mijaljevic.backup_manager.database.BackupFile;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -33,7 +37,7 @@ import java.util.zip.CRC32;
 /**
  * Utility class for various helper methods.
  */
-final class Utils {
+public final class Utils {
     /**
      * Default buffer size for file operations.
      */

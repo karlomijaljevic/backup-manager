@@ -20,6 +20,9 @@ import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import picocli.CommandLine;
+import xyz.mijaljevic.backup_manager.commands.MainCommand;
+import xyz.mijaljevic.backup_manager.database.BackupDatabase;
+import xyz.mijaljevic.backup_manager.utilities.Utils;
 
 import java.io.File;
 import java.sql.SQLException;
@@ -27,7 +30,7 @@ import java.sql.SQLException;
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
- * Test class for the validate command of the {@link ValidateCommand} class.
+ * Tests the validate command.
  */
 final class ValidateCommandTest {
     /**
@@ -85,7 +88,7 @@ final class ValidateCommandTest {
     void testValidation() {
         String[] args = {"validate", "-b", DATABASE_NAME, TEST_DIRECTORY};
 
-        CommandLine commandLine = new CommandLine(new Main.MainCommand());
+        CommandLine commandLine = new CommandLine(new MainCommand());
 
         assertEquals(
                 0,

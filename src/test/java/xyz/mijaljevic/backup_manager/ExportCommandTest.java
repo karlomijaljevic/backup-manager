@@ -20,6 +20,9 @@ import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import picocli.CommandLine;
+import xyz.mijaljevic.backup_manager.commands.MainCommand;
+import xyz.mijaljevic.backup_manager.database.BackupDatabase;
+import xyz.mijaljevic.backup_manager.database.BackupFile;
 
 import java.io.File;
 import java.io.IOException;
@@ -31,7 +34,7 @@ import java.time.LocalDateTime;
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
- * Test class for the export command of the {@link ExportCommand} class.
+ * Test the export command.
  */
 final class ExportCommandTest {
     /**
@@ -75,7 +78,7 @@ final class ExportCommandTest {
     void testValidation() {
         String[] args = {"export", DATABASE_NAME};
 
-        CommandLine commandLine = new CommandLine(new Main.MainCommand());
+        CommandLine commandLine = new CommandLine(new MainCommand());
 
         assertEquals(
                 0,

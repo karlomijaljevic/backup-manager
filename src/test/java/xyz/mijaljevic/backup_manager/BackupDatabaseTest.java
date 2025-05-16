@@ -19,6 +19,8 @@ package xyz.mijaljevic.backup_manager;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
+import xyz.mijaljevic.backup_manager.database.BackupDatabase;
+import xyz.mijaljevic.backup_manager.database.BackupFile;
 
 import java.io.File;
 import java.sql.SQLException;

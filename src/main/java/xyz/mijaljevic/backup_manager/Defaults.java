@@ -21,7 +21,7 @@ import java.time.format.DateTimeFormatter;
 /**
  * Application level defaults.
  */
-final class Defaults {
+public final class Defaults {
     /**
      * Environment name where the database pathname is stored.
      */
@@ -31,7 +31,7 @@ final class Defaults {
      * Default H2 database name to use in case there is no user provided
      * database pathname.
      */
-    public static final String DATABASE_NAME = "./backup.db";
+    public static final String DATABASE_NAME = resolveDefaultDatabaseName();
 
     /**
      * Default database username.
@@ -57,4 +57,19 @@ final class Defaults {
      * Date format to use for the exported data.
      */
     public static final DateTimeFormatter EXPORT_DATA_FORMAT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+
+    /**
+     * Resolve the default database name based on the operating system.
+     *
+     * @return The default database name.
+     */
+    private static String resolveDefaultDatabaseName() {
+        String os = System.getProperty("os.name").toLowerCase();
+
+        if (os.contains("win")) {
+            return ".\\backup.db";
+        } else {
+            return "./backup.db";
+        }
+    }
 }

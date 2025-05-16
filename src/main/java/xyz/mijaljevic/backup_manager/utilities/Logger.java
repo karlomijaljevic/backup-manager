@@ -14,7 +14,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-package xyz.mijaljevic.backup_manager;
+package xyz.mijaljevic.backup_manager.utilities;
 
 import org.slf4j.LoggerFactory;
 
@@ -22,7 +22,7 @@ import org.slf4j.LoggerFactory;
  * Logger class for logging purposes.
  * This class is a singleton and provides a single instance of the logger.
  */
-final class Logger {
+public final class Logger {
     /**
      * A single instance of the org.slf4j.Logger class for logging purposes.
      */
@@ -42,15 +42,6 @@ final class Logger {
      */
     public static void info(String message) {
         LOGGER.info(message);
-    }
-
-    /**
-     * Logs a WARNING message.
-     *
-     * @param message The WARNING message to log
-     */
-    public static void warn(String message) {
-        LOGGER.warn(message);
     }
 
     /**

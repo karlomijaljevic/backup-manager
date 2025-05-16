@@ -20,14 +20,15 @@ import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import picocli.CommandLine;
+import xyz.mijaljevic.backup_manager.commands.MainCommand;
+import xyz.mijaljevic.backup_manager.utilities.Utils;
 
 import java.io.File;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
- * Tests the {@link CompareCommand} class and generally the comparison
- * process.
+ * Tests the compare command.
  */
 final class CompareCommandTest {
     /**
@@ -90,7 +91,7 @@ final class CompareCommandTest {
 
         String[] args = {"compare", BASE_TEST_DIRECTORY, OTHER_TEST_DIRECTORY, "-r", reportFileName};
 
-        CommandLine commandLine = new CommandLine(new Main.MainCommand());
+        CommandLine commandLine = new CommandLine(new MainCommand());
 
         assertEquals(
                 0,

@@ -39,6 +39,9 @@ using Maven. The project uses the following dependencies:
 - Picocli
 - Apache Tika
 - fastexcel
+- log4j-slf4j2-impl
+- log4j-api
+- log4j-core
 - JUnit 5 (for testing)
 
 Currently, the project is considered stable and ready for use. However, there

@@ -20,13 +20,15 @@ import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import picocli.CommandLine;
+import xyz.mijaljevic.backup_manager.commands.MainCommand;
+import xyz.mijaljevic.backup_manager.utilities.Utils;
 
 import java.io.File;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
- * Tests the {@link IndexCommand} class and generally the indexing process.
+ * Tests the index command.
  */
 final class IndexCommandTest {
     /**
@@ -74,7 +76,7 @@ final class IndexCommandTest {
     void testIndexing() {
         String[] args = {"index", "-b", DATABASE_NAME, TEST_DIRECTORY};
 
-        CommandLine commandLine = new CommandLine(new Main.MainCommand());
+        CommandLine commandLine = new CommandLine(new MainCommand());
 
         assertEquals(
                 0,

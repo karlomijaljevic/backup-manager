@@ -21,7 +21,9 @@ Lastly the default username and password for the H2 database are:
 - password: backup
 
 While the default database name is `backup`. You can change the default
-database path/name by setting the `BACKUP_DB` environment variable.
+database pathname by setting the `BACKUP_DB` environment variable or by using a
+command line option. Consult the usage section for more as well as the `-h` or
+`--help` option of each command.
 
 ## Current Status
 
@@ -72,9 +74,9 @@ current working directory with the name `backup.db` unless a different pathname
 is specified using the `-b` or `--backup` option. This can also be achieved by
 setting the `BACKUP_DB` environment variable.
 
-The username and password for the database can be specified using the `-u` and
-`-p` options, respectively. If not specified, the default username and password
-will be used.
+The username and password for the database can be specified using the `-u` or
+`--username` and `-p` or `--password` options, respectively. If not specified,
+the default username and password will be used.
 
 The directory to be indexed is specified as the first argument. The command will
 recursively traverse the directory and add all files and subdirectories to the
@@ -94,13 +96,19 @@ recursively traverse both directories and compare the contents of each file
 and subdirectory. Any differences will be reported to the console or written to
 a report file.
 
-The report file can be specified using the `-r` option. If not specified, the
-report will be written to the console. The report file will be created in the
-current working directory with the name `report.txt` unless a different
-pathname is specified using the `-r` option.
+The report file can be specified using the `-r` or `--report` option. If not
+specified, the report will be written to the console. The report file will be
+created in the current working directory with the name `report.txt` unless a
+different pathname is specified using the `-r` or `--report` option.
+
+The compare command can also copy the missing files from the first directory to
+the second directory. This can be done by providing the `-c` or `--copy-on-diff`
+option. This will copy the missing files from the first directory to the
+second directory. note that this will overwrite any existing files in the
+second directory. Lastly this will not copy over empty directories.
 
 ```shell
-backup-manager compare <directory1> <directory2> [-r <report>]
+backup-manager compare [-c] <directory1> <directory2> [-r <report>]
 ```
 
 ### Validate
@@ -111,19 +119,20 @@ The command will recursively traverse the directory and compare the contents of
 each file and subdirectory with the entries in the database. Any differences
 will be reported to the console or written to a report file.
 
-The report file can be specified using the `-r` option. If not specified, the
-report will be written to the console. The report file will be created in the
-current working directory with the name `report.txt` unless a different
-pathname is specified using the `-r` option.
+The report file can be specified using the `-r` or `--report` option. If not
+specified, the report will be written to the console. The report file will be
+created in the current working directory with the name `report.txt` unless a
+different pathname is specified using the `-r` or `--report` option.
 
 The database to be validated against can be specified using the `-b` or
 `--backup` option. If not specified, the default database will be used. The
-username and password for the database can be specified using the `-u` and
-`-p` options, respectively. If not specified, the default username and password
-will be used.
+username and password for the database can be specified using the `-u` or
+`--username` and `-p` or `--password` options, respectively. If not specified,
+the default username and password will be used.
 
-If the database is not specified either by the `-b` option or by the `BACKUP_DB`
-environment variable, the command will return with a non-zero exit code.
+If the database is not specified either by the `-b` or `--backup` option or by
+the `BACKUP_DB` environment variable, the command will return with a non-zero
+exit code.
 
 ```shell
 backup-manager validate <directory> [-b <backup_db>] [-u <username>] [-p <password>] [-r <report>]
@@ -141,9 +150,9 @@ If the database name is not specified, the command will look for the `BACKUP_DB`
 environment variable. If the environment variable is not set, the command will
 return with a non-zero exit code.
 
-If the database requires a username and password, they can be specified using the
-`-u` and `-p` options, respectively. If not specified, the default username and
-password will be used.
+If the database requires a username and password, they can be specified using
+the `-u` or `--username` and `-p` or `--password` options, respectively. If not
+specified, the default username and password will be used.
 
 ```shell
 backup-manager export <backup_db> [-u <username>] [-p <password>]

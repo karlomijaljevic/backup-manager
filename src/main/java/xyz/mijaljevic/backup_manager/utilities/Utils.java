@@ -23,6 +23,7 @@ import xyz.mijaljevic.backup_manager.database.BackupFile;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.nio.channels.FileChannel;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
@@ -289,5 +290,66 @@ public final class Utils {
         Logger.info(response);
 
         return exitCode;
+    }
+
+    /**
+     * Copies a file from the source to the destination. If the destination
+     * file already exists, it will be truncated before copying.
+     * <p>
+     * This method uses a buffer to copy the file in chunks, which is more
+     * efficient than copying the file in one go. Furthermore, it creates
+     * the destination directory if it does not exist and all parent
+     * directories.
+     * <p>
+     * It will not copy empty directories, only files.
+     *
+     * @param source      The source file to copy
+     * @param destination The destination file to copy to
+     * @return true if the copy was successful, false otherwise
+     */
+    public static boolean copyFile(File source, File destination) {
+        String destinationDirectoryPath = destination.getAbsolutePath().substring(
+                0,
+                destination.getAbsolutePath().lastIndexOf(File.separator)
+        );
+
+        File destinationDirectory = new File(destinationDirectoryPath);
+
+        if (!destinationDirectory.exists()) {
+            Logger.debug("Destination directory for COPY does not exist: " + destinationDirectoryPath);
+            Logger.debug("Creating destination directory: " + destinationDirectoryPath);
+
+            try {
+                Files.createDirectories(Path.of(destinationDirectoryPath));
+            } catch (IOException e) {
+                Logger.error("Error creating destination directory: " + destinationDirectoryPath);
+                return false;
+            }
+        }
+
+        try (
+                FileChannel inChannel = new FileInputStream(source.getAbsolutePath()).getChannel();
+                FileChannel outChannel = FileChannel.open(
+                        destination.toPath(),
+                        StandardOpenOption.CREATE,
+                        StandardOpenOption.WRITE,
+                        StandardOpenOption.TRUNCATE_EXISTING
+                )
+        ) {
+            long size = inChannel.size();
+            long position = 0;
+
+            while (position < size) {
+                long bytesToTransfer = Math.min(BUFFER_SIZE, size - position);
+                long transferred = inChannel.transferTo(position, bytesToTransfer, outChannel);
+                if (transferred <= 0) break;
+                position += transferred;
+            }
+
+            return true;
+        } catch (IOException e) {
+            Logger.error("Error copying file: " + source.getName());
+            return false;
+        }
     }
 }

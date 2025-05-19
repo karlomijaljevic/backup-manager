@@ -125,6 +125,10 @@ final class ValidateCommand implements Callable<Integer> {
     )
     String reportFileName;
 
+    /**
+     * Verbose output option. If enabled, the command will print the name
+     * of each file as it is validated.
+     */
     @Option(
             names = {"-v", "--verbose"},
             description = """
@@ -135,6 +139,10 @@ final class ValidateCommand implements Callable<Integer> {
     )
     boolean verbose;
 
+    /**
+     * Directory output option. If enabled, the command will print the name
+     * of each directory as it is validated.
+     */
     @Option(
             names = {"-d", "--directory"},
             description = """

@@ -93,6 +93,10 @@ final class ExportCommand implements Callable<Integer> {
     )
     String password;
 
+    /**
+     * Verbose output option. If enabled, the command will print the name
+     * of each file as it is exported.
+     */
     @Option(
             names = {"-v", "--verbose"},
             description = """

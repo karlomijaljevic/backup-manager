@@ -40,7 +40,6 @@ import java.util.concurrent.Callable;
  * This command will index the provided directory and all of its
  * subdirectories. If no database is provided, a new one will be created
  * in the working directory named backup.db.
- * </p>
  */
 @Command(
         name = "index",
@@ -99,6 +98,10 @@ final class IndexCommand implements Callable<Integer> {
     )
     String password;
 
+    /**
+     * Verbose output option. If enabled, the command will print the name
+     * of each file as it is indexed.
+     */
     @Option(
             names = {"-v", "--verbose"},
             description = """
@@ -109,6 +112,10 @@ final class IndexCommand implements Callable<Integer> {
     )
     boolean verbose;
 
+    /**
+     * Directory output option. If enabled, the command will print the name
+     * of each directory as it is indexed.
+     */
     @Option(
             names = {"-d", "--directory"},
             description = """

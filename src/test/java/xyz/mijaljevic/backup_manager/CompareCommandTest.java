@@ -89,7 +89,7 @@ final class CompareCommandTest {
     void testComparison() {
         final String reportFileName = "report.txt";
 
-        String[] args = {"compare", BASE_TEST_DIRECTORY, OTHER_TEST_DIRECTORY, "-r", reportFileName};
+        String[] args = {"compare", BASE_TEST_DIRECTORY, OTHER_TEST_DIRECTORY, "-c", "-v", "-r", reportFileName};
 
         CommandLine commandLine = new CommandLine(new MainCommand());
 

@@ -52,4 +52,13 @@ public final class Logger {
     public static void error(String message) {
         LOGGER.error(message);
     }
+
+    /**
+     * Logs a DEBUG message.
+     *
+     * @param message The DEBUG message to log
+     */
+    public static void debug(String message) {
+        LOGGER.debug(message);
+    }
 }

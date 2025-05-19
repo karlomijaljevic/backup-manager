@@ -31,6 +31,11 @@ import java.util.concurrent.Callable;
  * CompareCommand is a command-line utility that compares two directories and
  * generates a report of the differences. The report can be saved to a file or
  * printed to the console.
+ * <p>
+ * The command can also be used to copy files that are different in the second
+ * directory compared to the first directory. This is done by using the
+ * --copy-on-diff option. Take heed that this option will overwrite the files
+ * on the second directory if they are different. Use with caution.
  */
 @Command(
         name = "compare",
@@ -45,6 +50,15 @@ import java.util.concurrent.Callable;
                       extra in the second directory compared to the first
                       directory. The report is generated in a human-readable
                       format.
+                      
+                      The command can also be used to copy the files that are
+                      different in the second directory compared to the first
+                      directory. This is done by using the --copy-on-diff
+                      option. Take heed that this option will overwrite the
+                      files on the second directory if they are different. Use
+                      with caution.
+                      
+                      Lastly it will not copy empty directories, only files.
                       """,
         optionListHeading = "%nCompare Options:%n",
         parameterListHeading = "%nParameters:%n",
@@ -71,6 +85,10 @@ final class CompareCommand implements Callable<Integer> {
     )
     String reportFileName;
 
+    /**
+     * Verbose output option. If enabled, the command will print the name
+     * of each file as it is compared.
+     */
     @Option(
             names = {"-v", "--verbose"},
             description = """
@@ -81,6 +99,10 @@ final class CompareCommand implements Callable<Integer> {
     )
     boolean verbose;
 
+    /**
+     * Directory output option. If enabled, the command will print the name
+     * of each directory as it is compared.
+     */
     @Option(
             names = {"-d", "--directory"},
             description = """
@@ -90,6 +112,28 @@ final class CompareCommand implements Callable<Integer> {
                           """
     )
     boolean directoryOutput;
+
+    /**
+     * Copy on diff option. If enabled, the command will copy the files
+     * that are different in the second directory compared to the first
+     * directory.
+     */
+    @Option(
+            names = {"-c", "--copy-on-diff"},
+            description = """
+                          Enable copy on diff. This will copy the files that
+                          are different on the other directory compared to the
+                          base directory.
+                          
+                          Take heed that this option will overwrite the files
+                          on the other directory if they are different. Use
+                          with caution.
+                          
+                          Lastly it will not copy empty directories, only
+                          files.
+                          """
+    )
+    boolean copyOnDiff;
 
     /**
      * Directory pathnames to compare.
@@ -178,6 +222,7 @@ final class CompareCommand implements Callable<Integer> {
 
             if (!otherFile.exists()) {
                 Utils.writeReport(reportFileName, "MISS: " + relativePath);
+                copyOnDiff(file, otherFile);
             } else {
                 try {
                     String baseChecksum = Utils.generateCrc32Checksum(file);
@@ -185,6 +230,7 @@ final class CompareCommand implements Callable<Integer> {
 
                     if (!baseChecksum.equals(otherChecksum)) {
                         Utils.writeReport(reportFileName, "DIFF: " + relativePath);
+                        copyOnDiff(file, otherFile);
                     }
                 } catch (Exception e) {
                     Logger.error("Error generating checksum for file: " + relativePath);
@@ -226,13 +272,31 @@ final class CompareCommand implements Callable<Integer> {
      * Prepares the report file by writing the header information.
      */
     private void prepareReportFile() {
-        Utils.writeReport(reportFileName, "======================= DIFF REPORT ======================");
+        Utils.writeReport(reportFileName, "======================== DIFF REPORT =======================");
         Utils.writeReport(reportFileName, "Report generated on: " + LocalDateTime.now());
         Utils.writeReport(reportFileName, "Base directory: " + baseDirAbsolutePath);
         Utils.writeReport(reportFileName, "Other directory: " + otherDirAbsolutePath);
         Utils.writeReport(reportFileName, "DIFF - Stands for different files due to CRC32 checksum");
         Utils.writeReport(reportFileName, "MISS - Stands for missing files in the other directory");
         Utils.writeReport(reportFileName, "EXTRA - Stands for extra files in the other directory");
-        Utils.writeReport(reportFileName, "==========================================================");
+        if (copyOnDiff) {
+            Utils.writeReport(reportFileName, "MISS and DIFF files will be copied to the other directory");
+        }
+        Utils.writeReport(reportFileName, "============================================================");
+    }
+
+    /**
+     * Copies the file from the source to the destination if the
+     * copyOnDiff option is enabled. Logs errors if the copy fails.
+     *
+     * @param source      The source file to copy.
+     * @param destination The destination file to copy to.
+     */
+    private void copyOnDiff(File source, File destination) {
+        if (copyOnDiff) {
+            if (!Utils.copyFile(source, destination)) {
+                Logger.error("Failed to copy file: " + source.getName());
+            }
+        }
     }
 }

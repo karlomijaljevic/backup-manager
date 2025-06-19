@@ -11,7 +11,7 @@
     <packaging>jar</packaging>
 
     <description>
-        Simple backup manager to check and compare "RADI0" backups.
+        Simple backup manager to check and compare "RAID1" backups.
     </description>
 
     <licenses>

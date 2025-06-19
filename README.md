@@ -1,6 +1,6 @@
 # Backup Manager
 
-Simple backup manager to check and compare *"RADI0"* backups. I will use (or I
+Simple backup manager to check and compare *"RAID1"* backups. I will use (or I
 am using, depends on if the project is finished or not :D) this manager to
 compare and index my external drives. There are a couple of usages:
 

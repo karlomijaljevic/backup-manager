@@ -16,6 +16,7 @@
  */
 package xyz.mijaljevic.backup_manager;
 
+import java.nio.file.FileSystems;
 import java.time.format.DateTimeFormatter;
 
 /**
@@ -59,17 +60,23 @@ public final class Defaults {
     public static final DateTimeFormatter EXPORT_DATA_FORMAT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
     /**
-     * Resolve the default database name based on the operating system.
+     * Default number of threads to use for file operations.
+     *
+     * <p>
+     * This is set to half the number of available processors to balance
+     * performance and resource usage.
+     * </p>
+     */
+    public static final int THREAD_NUMBER = (int) Math.ceil(
+            Runtime.getRuntime().availableProcessors() / 2.0
+    );
+
+    /**
+     * Resolve the default database name based on the FS separator.
      *
      * @return The default database name.
      */
     private static String resolveDefaultDatabaseName() {
-        String os = System.getProperty("os.name").toLowerCase();
-
-        if (os.contains("win")) {
-            return ".\\backup.db";
-        } else {
-            return "./backup.db";
-        }
+        return "." + FileSystems.getDefault().getSeparator() + "backup.db";
     }
 }

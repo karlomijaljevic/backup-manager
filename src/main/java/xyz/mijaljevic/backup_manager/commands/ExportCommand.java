@@ -132,7 +132,7 @@ final class ExportCommand implements Callable<Integer> {
      */
     @Override
     public Integer call() {
-        Instant start = Instant.now();
+        final Instant start = Instant.now();
 
         if (dbPath == null || "NOT_SET".equals(dbPath)) {
             dbPath = System.getenv(Defaults.DATABASE_ENVIRONMENT_NAME);
@@ -146,10 +146,10 @@ final class ExportCommand implements Callable<Integer> {
             }
         }
 
-        BackupDatabase database;
+        final BackupDatabase database;
 
         try {
-            database = BackupDatabase.BackupDatabaseBuilder.builder()
+            database = BackupDatabase.Builder.builder()
                     .setPassword(password)
                     .setUsername(user)
                     .setName(dbPath)
@@ -163,10 +163,10 @@ final class ExportCommand implements Callable<Integer> {
             );
         }
 
-        String[] dbTokens = dbPath.split(Pattern.quote(File.separator));
-        String dbName = dbTokens[dbTokens.length - 1].replace(".db", "");
+        final String[] dbTokens = dbPath.split(Pattern.quote(File.separator));
+        final String dbName = dbTokens[dbTokens.length - 1].replace(".db", "");
 
-        StringBuilder exportName = new StringBuilder();
+        final StringBuilder exportName = new StringBuilder();
 
         exportName.append(LocalDate.now().format(Defaults.EXPORT_FILE_FORMAT));
         exportName.append("_");

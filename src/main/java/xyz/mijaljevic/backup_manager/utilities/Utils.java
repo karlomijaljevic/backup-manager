@@ -31,7 +31,6 @@ import java.sql.SQLException;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
-import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.zip.CRC32;
 
@@ -97,30 +96,24 @@ public final class Utils {
     }
 
     /**
-     * Traverses a directory and all of its subdirectories. For each file in
-     * the directory, the provided file callback is called. The directory
-     * callback is called for each directory once it starts being processed and
-     * once it is finished processing.
-     * <p>
-     * This method is recursive and will traverse all subdirectories. Note that
-     * the directory callback will not be called for the root directory.
+     * Processes a directory and all of its subdirectories recursively. For
+     * each file in a directory, the provided file callback is called.
      *
-     * @param directory         The root directory to traverse
-     * @param fileCallback      The {@link Consumer} callback to call for each
-     *                          file. The parameter is the file to process.
-     * @param directoryCallback The {@link BiConsumer }callback to call for
-     *                          each directory once it starts being processed
-     *                          and is finished processing. The first parameter
-     *                          is the directory and the second parameter is a
-     *                          boolean indicating if the directory is being
-     *                          processed or has been finished processing. If
-     *                          true, the directory is being processed. If false,
-     *                          the directory has been finished processing.
+     * <p>
+     * The file callback is scheduled to be executed by the provided task
+     * scheduler. This allows for concurrent processing of files.
+     * </p>
+     *
+     * @param directory    The root directory to traverse.
+     * @param scheduler    The {@link TaskScheduler} to use for scheduling
+     *                     file processing tasks.
+     * @param fileCallback The {@link Consumer} callback to call for each
+     *                     file. The parameter is the file to process.
      */
-    public static void traverseDirectoryRecursively(
+    public static void processDirectory(
             File directory,
-            Consumer<File> fileCallback,
-            BiConsumer<File, Boolean> directoryCallback
+            TaskScheduler<File> scheduler,
+            Consumer<File> fileCallback
     ) {
         File[] files = directory.listFiles();
 
@@ -128,31 +121,11 @@ public final class Utils {
 
         for (File file : files) {
             if (file.isDirectory()) {
-                directoryCallback.accept(file, true);
-                traverseDirectoryRecursively(file, fileCallback, directoryCallback);
-                directoryCallback.accept(file, false);
+                processDirectory(file, scheduler, fileCallback);
             } else {
-                fileCallback.accept(file);
+                scheduler.schedule(fileCallback, file);
             }
         }
-    }
-
-    /**
-     * Deletes a directory recursively.
-     *
-     * @param directory Directory to delete.
-     * @return True if it is successful false otherwise.
-     */
-    public static boolean deleteDirectoryRecursively(File directory) {
-        File[] files = directory.listFiles();
-
-        if (files != null) {
-            for (File file : files) {
-                deleteDirectoryRecursively(file);
-            }
-        }
-
-        return directory.delete();
     }
 
     /**
@@ -166,7 +139,9 @@ public final class Utils {
         if (reportFileName == null) {
             Logger.info("Report will be printed to the console.");
         } else {
-            reportFileName = reportFileName.isEmpty() ? Defaults.REPORT_NAME : reportFileName;
+            reportFileName = reportFileName.isEmpty()
+                    ? Defaults.REPORT_NAME
+                    : reportFileName;
 
             try {
                 Files.newOutputStream(
@@ -269,17 +244,27 @@ public final class Utils {
             String message
     ) {
         long duration = Duration.between(start, Instant.now()).toMillis();
-        String response = "Program lasted for ";
 
-        if (duration < 1000) {
-            response = response + duration + " ms";
-        } else if (duration < 60000) {
-            response = response + (duration / 1000) + " s";
-        } else if (duration < 3600000) {
-            response = response + (duration / 60000) + " min";
-        } else {
-            response = response + (duration / 3600000) + " h";
+        long hours = duration / 3600000;
+        long minutes = (duration % 3600000) / 60000;
+        long seconds = (duration % 60000) / 1000;
+        long millis = duration % 1000;
+
+        StringBuilder response = new StringBuilder("Program lasted for ");
+        boolean hasPrevious = false;
+
+        if (hours > 0) {
+            response.append(hours).append("h ");
+            hasPrevious = true;
         }
+        if (minutes > 0 || hasPrevious) {
+            response.append(minutes).append("min ");
+            hasPrevious = true;
+        }
+        if (seconds > 0 || hasPrevious) {
+            response.append(seconds).append("s ");
+        }
+        response.append(millis).append("ms");
 
         if (exitCode != 0) {
             Logger.error(message);
@@ -287,7 +272,7 @@ public final class Utils {
             Logger.info(message);
         }
 
-        Logger.info(response);
+        Logger.info(response.toString().trim());
 
         return exitCode;
     }
@@ -308,21 +293,18 @@ public final class Utils {
      * @return true if the copy was successful, false otherwise
      */
     public static boolean copyFile(File source, File destination) {
-        String destinationDirectoryPath = destination.getAbsolutePath().substring(
+        String destDirPath = destination.getAbsolutePath().substring(
                 0,
                 destination.getAbsolutePath().lastIndexOf(File.separator)
         );
 
-        File destinationDirectory = new File(destinationDirectoryPath);
+        File destinationDirectory = new File(destDirPath);
 
         if (!destinationDirectory.exists()) {
-            Logger.debug("Destination directory for COPY does not exist: " + destinationDirectoryPath);
-            Logger.debug("Creating destination directory: " + destinationDirectoryPath);
-
             try {
-                Files.createDirectories(Path.of(destinationDirectoryPath));
+                Files.createDirectories(Path.of(destDirPath));
             } catch (IOException e) {
-                Logger.error("Error creating destination directory: " + destinationDirectoryPath);
+                Logger.error("Error creating destination directory: " + destDirPath);
                 return false;
             }
         }
@@ -341,7 +323,11 @@ public final class Utils {
 
             while (position < size) {
                 long bytesToTransfer = Math.min(BUFFER_SIZE, size - position);
-                long transferred = inChannel.transferTo(position, bytesToTransfer, outChannel);
+                long transferred = inChannel.transferTo(
+                        position,
+                        bytesToTransfer,
+                        outChannel
+                );
                 if (transferred <= 0) break;
                 position += transferred;
             }

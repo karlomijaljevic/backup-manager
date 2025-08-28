@@ -20,6 +20,7 @@ import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 import picocli.CommandLine.Parameters;
 import xyz.mijaljevic.backup_manager.utilities.Logger;
+import xyz.mijaljevic.backup_manager.utilities.TaskScheduler;
 import xyz.mijaljevic.backup_manager.utilities.Utils;
 
 import java.io.File;
@@ -43,23 +44,23 @@ import java.util.concurrent.Callable;
         usageHelpAutoWidth = true,
         descriptionHeading = "%nDescription:%n",
         description = """
-                      Compares two directories and generates a report of the
-                      differences. The report is either saved in the working
-                      directory or printed to the console. The report contains
-                      the list of files that are different, missing, or
-                      extra in the second directory compared to the first
-                      directory. The report is generated in a human-readable
-                      format.
-                      
-                      The command can also be used to copy the files that are
-                      different in the second directory compared to the first
-                      directory. This is done by using the --copy-on-diff
-                      option. Take heed that this option will overwrite the
-                      files on the second directory if they are different. Use
-                      with caution.
-                      
-                      Lastly it will not copy empty directories, only files.
-                      """,
+                Compares two directories and generates a report of the
+                differences. The report is either saved in the working
+                directory or printed to the console. The report contains
+                the list of files that are different, missing, or
+                extra in the second directory compared to the first
+                directory. The report is generated in a human-readable
+                format.
+                
+                The command can also be used to copy the files that are
+                different in the second directory compared to the first
+                directory. This is done by using the --copy-on-diff
+                option. Take heed that this option will overwrite the
+                files on the second directory if they are different. Use
+                with caution.
+                
+                Lastly it will not copy empty directories, only files.
+                """,
         optionListHeading = "%nCompare Options:%n",
         parameterListHeading = "%nParameters:%n",
         exitCodeListHeading = "%nExit Codes:%n",
@@ -77,11 +78,11 @@ final class CompareCommand implements Callable<Integer> {
             names = {"-r", "--report"},
             paramLabel = "REPORT",
             description = """
-                          Name of the report file. If not specified, the report
-                          is printed to the console. If specified but without a
-                          value then the report is saved in the working
-                          directory with the name "report.txt".
-                          """
+                    Name of the report file. If not specified, the report
+                    is printed to the console. If specified but without a
+                    value then the report is saved in the working
+                    directory with the name "report.txt".
+                    """
     )
     String reportFileName;
 
@@ -92,26 +93,11 @@ final class CompareCommand implements Callable<Integer> {
     @Option(
             names = {"-v", "--verbose"},
             description = """
-                          Enable verbose output. This will print the name of
-                          each file as it is compared. If you wish to print
-                          only directory names, use the -d option.
-                          """
+                    Enable verbose output. This will print the name of
+                    each file as it is compared.
+                    """
     )
     boolean verbose;
-
-    /**
-     * Directory output option. If enabled, the command will print the name
-     * of each directory as it is compared.
-     */
-    @Option(
-            names = {"-d", "--directory"},
-            description = """
-                          Enable directory output. This will print the name of
-                          each directory as it is compared. If you wish to
-                          print file names as well, use the -v option.
-                          """
-    )
-    boolean directoryOutput;
 
     /**
      * Copy on diff option. If enabled, the command will copy the files
@@ -121,19 +107,30 @@ final class CompareCommand implements Callable<Integer> {
     @Option(
             names = {"-c", "--copy-on-diff"},
             description = """
-                          Enable copy on diff. This will copy the files that
-                          are different on the other directory compared to the
-                          base directory.
-                          
-                          Take heed that this option will overwrite the files
-                          on the other directory if they are different. Use
-                          with caution.
-                          
-                          Lastly it will not copy empty directories, only
-                          files.
-                          """
+                    Enable copy on diff. This will copy the files that
+                    are different on the other directory compared to the
+                    base directory.
+                    
+                    Take heed that this option will overwrite the files
+                    on the other directory if they are different. Use
+                    with caution.
+                    
+                    Lastly it will not copy empty directories, only
+                    files.
+                    """
     )
     boolean copyOnDiff;
+
+    @Option(
+            names = {"-t", "--threads"},
+            paramLabel = "MAX_THREADS",
+            description = """
+                    Maximum number of threads to use for indexing.
+                    Default half of the number of available processors
+                    rounded up. Minimum is 1.
+                    """
+    )
+    int maxThreads;
 
     /**
      * Directory pathnames to compare.
@@ -145,16 +142,6 @@ final class CompareCommand implements Callable<Integer> {
     String[] directory;
 
     /**
-     * Base directory absolute path.
-     */
-    private String baseDirAbsolutePath;
-
-    /**
-     * Other directory absolute path.
-     */
-    private String otherDirAbsolutePath;
-
-    /**
      * Executes the comparison of two directories and optionally generates a
      * report.
      *
@@ -162,7 +149,7 @@ final class CompareCommand implements Callable<Integer> {
      */
     @Override
     public Integer call() {
-        Instant start = Instant.now();
+        final Instant start = Instant.now();
 
         if (directory == null || directory.length != 2) {
             return Utils.processExitAndCalculateTime(
@@ -182,8 +169,8 @@ final class CompareCommand implements Callable<Integer> {
             }
         }
 
-        File base = new File(directory[0]);
-        File other = new File(directory[1]);
+        final File base = new File(directory[0]);
+        final File other = new File(directory[1]);
 
         if (!base.exists() || !base.isDirectory()) {
             return Utils.processExitAndCalculateTime(
@@ -201,9 +188,6 @@ final class CompareCommand implements Callable<Integer> {
             );
         }
 
-        baseDirAbsolutePath = base.getAbsolutePath();
-        otherDirAbsolutePath = other.getAbsolutePath();
-
         if (Utils.initReportFile(reportFileName) != 0) {
             return Utils.processExitAndCalculateTime(
                     start,
@@ -212,12 +196,58 @@ final class CompareCommand implements Callable<Integer> {
             );
         }
 
-        prepareReportFile();
+        final String baseDirAbsolutePath = base.getAbsolutePath();
+        final String otherDirAbsolutePath = other.getAbsolutePath();
 
-        Utils.traverseDirectoryRecursively(base, file -> {
+        prepareReportFile(baseDirAbsolutePath, otherDirAbsolutePath);
+
+        final TaskScheduler<File> scheduler = new TaskScheduler<>(maxThreads);
+
+        compareBaseToOther(
+                base,
+                scheduler,
+                baseDirAbsolutePath,
+                otherDirAbsolutePath
+        );
+
+        compareOtherToBase(
+                other,
+                scheduler,
+                baseDirAbsolutePath,
+                otherDirAbsolutePath
+        );
+
+        return Utils.processExitAndCalculateTime(
+                start,
+                0,
+                "Successfully compared directories."
+        );
+    }
+
+    /**
+     * Compares files in the base directory to those in the other directory.
+     * Logs missing or different files and optionally copies them if the
+     * copyOnDiff option is enabled.
+     *
+     * @param base                 The base directory.
+     * @param scheduler            The task scheduler for parallel processing.
+     * @param baseDirAbsolutePath  The absolute path of the base directory.
+     * @param otherDirAbsolutePath The absolute path of the other directory.
+     */
+    private void compareBaseToOther(
+            File base,
+            TaskScheduler<File> scheduler,
+            String baseDirAbsolutePath,
+            String otherDirAbsolutePath
+    ) {
+        Utils.processDirectory(base, scheduler, file -> {
             if (verbose) Logger.info("Comparing file: " + file.getName());
 
-            String relativePath = Utils.resolveAbsoluteParentPathFromChild(baseDirAbsolutePath, file);
+            String relativePath = Utils.resolveAbsoluteParentPathFromChild(
+                    baseDirAbsolutePath,
+                    file
+            );
+
             File otherFile = new File(otherDirAbsolutePath + relativePath);
 
             if (!otherFile.exists()) {
@@ -229,49 +259,63 @@ final class CompareCommand implements Callable<Integer> {
                     String otherChecksum = Utils.generateCrc32Checksum(otherFile);
 
                     if (!baseChecksum.equals(otherChecksum)) {
-                        Utils.writeReport(reportFileName, "DIFF: " + relativePath);
+                        Utils.writeReport(
+                                reportFileName,
+                                "DIFF: " + relativePath
+                        );
+
                         copyOnDiff(file, otherFile);
                     }
                 } catch (Exception e) {
                     Logger.error("Error generating checksum for file: " + relativePath);
                 }
             }
-        }, (directory, processing) -> {
-            if (verbose || directoryOutput) {
-                String message = processing
-                        ? "Comparing directory: "
-                        : "Finished comparing directory: ";
-                Logger.info(message + directory.getName());
-            }
         });
+    }
 
-        Utils.traverseDirectoryRecursively(other, file -> {
-            if (verbose) Logger.info("Checking for extra file: " + file.getName());
+    /**
+     * Compares files in the other directory to those in the base directory.
+     * Logs extra files found in the other directory.
+     *
+     * @param other                The other directory.
+     * @param scheduler            The task scheduler for parallel processing.
+     * @param baseDirAbsolutePath  The absolute path of the base directory.
+     * @param otherDirAbsolutePath The absolute path of the other directory.
+     */
+    private void compareOtherToBase(
+            File other,
+            TaskScheduler<File> scheduler,
+            String baseDirAbsolutePath,
+            String otherDirAbsolutePath
+    ) {
+        Utils.processDirectory(other, scheduler, file -> {
+            if (verbose) {
+                Logger.info("Checking for extra file: " + file.getName());
+            }
 
-            String relativePath = Utils.resolveAbsoluteParentPathFromChild(otherDirAbsolutePath, file);
+            String relativePath = Utils.resolveAbsoluteParentPathFromChild(
+                    otherDirAbsolutePath,
+                    file
+            );
+
             File baseFile = new File(baseDirAbsolutePath + relativePath);
 
-            if (!baseFile.exists()) Utils.writeReport(reportFileName, "EXTRA: " + relativePath);
-        }, (directory, processing) -> {
-            if (verbose || directoryOutput) {
-                String message = processing
-                        ? "Processing other root for extra files in directory: "
-                        : "Finished processing other root for extra files in directory: ";
-                Logger.info(message + directory.getName());
+            if (!baseFile.exists()) {
+                Utils.writeReport(
+                        reportFileName,
+                        "EXTRA: " + relativePath
+                );
             }
         });
-
-        return Utils.processExitAndCalculateTime(
-                start,
-                0,
-                "Successfully compared directories."
-        );
     }
 
     /**
      * Prepares the report file by writing the header information.
      */
-    private void prepareReportFile() {
+    private void prepareReportFile(
+            String baseDirAbsolutePath,
+            String otherDirAbsolutePath
+    ) {
         Utils.writeReport(reportFileName, "======================== DIFF REPORT =======================");
         Utils.writeReport(reportFileName, "Report generated on: " + LocalDateTime.now());
         Utils.writeReport(reportFileName, "Base directory: " + baseDirAbsolutePath);

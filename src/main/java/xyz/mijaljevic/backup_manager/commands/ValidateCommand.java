@@ -20,10 +20,11 @@ import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 import picocli.CommandLine.Parameters;
 import xyz.mijaljevic.backup_manager.Defaults;
-import xyz.mijaljevic.backup_manager.utilities.Utils;
-import xyz.mijaljevic.backup_manager.utilities.Logger;
 import xyz.mijaljevic.backup_manager.database.BackupDatabase;
 import xyz.mijaljevic.backup_manager.database.BackupFile;
+import xyz.mijaljevic.backup_manager.utilities.Logger;
+import xyz.mijaljevic.backup_manager.utilities.TaskScheduler;
+import xyz.mijaljevic.backup_manager.utilities.Utils;
 
 import java.io.File;
 import java.io.IOException;
@@ -45,30 +46,30 @@ import java.util.concurrent.Callable;
         usageHelpAutoWidth = true,
         descriptionHeading = "%nDescription:%n",
         description = """
-                      Validates a directories files against the files in the
-                      specified database and generates a report.
-                      
-                      If no database is provided the command will first look
-                      for an environment variable named BACKUP_DB and if not
-                      found it will exit with an error.
-                      
-                      The database username and password are optional. If not
-                      provided, the command will use the default values for
-                      the database. The default values are:
-                      - username: backup
-                      - password: backup
-                      
-                      It works similar to the compare command, but instead of
-                      comparing two directories, it checks if the files in the
-                      specified directory exist in the database and if their
-                      checksums match.
-                      
-                      The report is generated in a human-readable format. The
-                      report can be saved to a file or printed to the console.
-                      The report contains the list of files that are different,
-                      missing, or extra in the directory compared to the
-                      database.
-                      """,
+                Validates a directories files against the files in the
+                specified database and generates a report.
+                
+                If no database is provided the command will first look
+                for an environment variable named BACKUP_DB and if not
+                found it will exit with an error.
+                
+                The database username and password are optional. If not
+                provided, the command will use the default values for
+                the database. The default values are:
+                - username: backup
+                - password: backup
+                
+                It works similar to the compare command, but instead of
+                comparing two directories, it checks if the files in the
+                specified directory exist in the database and if their
+                checksums match.
+                
+                The report is generated in a human-readable format. The
+                report can be saved to a file or printed to the console.
+                The report contains the list of files that are different,
+                missing, or extra in the directory compared to the
+                database.
+                """,
         optionListHeading = "%nValidate Options:%n",
         parameterListHeading = "%nParameters:%n",
         exitCodeListHeading = "%nExit Codes:%n",
@@ -117,11 +118,11 @@ final class ValidateCommand implements Callable<Integer> {
             names = {"-r", "--report"},
             paramLabel = "REPORT",
             description = """
-                          Name of the report file. If not specified, the report
-                          is printed to the console. If specified but without a
-                          value then the report is saved in the working
-                          directory with the name "report.txt".
-                          """
+                    Name of the report file. If not specified, the report
+                    is printed to the console. If specified but without a
+                    value then the report is saved in the working
+                    directory with the name "report.txt".
+                    """
     )
     String reportFileName;
 
@@ -132,26 +133,23 @@ final class ValidateCommand implements Callable<Integer> {
     @Option(
             names = {"-v", "--verbose"},
             description = """
-                          Enable verbose output. This will print the name of
-                          each file as it is validated. If you wish to print
-                          only directory names, use the -d option.
-                          """
+                    Enable verbose output. This will print the name of
+                    each file as it is validated. If you wish to print
+                    only directory names, use the -d option.
+                    """
     )
     boolean verbose;
 
-    /**
-     * Directory output option. If enabled, the command will print the name
-     * of each directory as it is validated.
-     */
     @Option(
-            names = {"-d", "--directory"},
+            names = {"-t", "--threads"},
+            paramLabel = "MAX_THREADS",
             description = """
-                          Enable directory output. This will print the name of
-                          each directory as it is validated. If you wish to
-                          print file names as well, use the -v option.
-                          """
+                    Maximum number of threads to use for indexing.
+                    Default half of the number of available processors
+                    rounded up. Minimum is 1.
+                    """
     )
-    boolean directoryOutput;
+    int maxThreads;
 
     /**
      * Directory pathname to validate.
@@ -163,26 +161,14 @@ final class ValidateCommand implements Callable<Integer> {
     String directory;
 
     /**
-     * A {@link BackupDatabase} initialized during the {@link #call()} method.
-     */
-    private BackupDatabase database;
-
-    /**
-     * Absolute path of the root directory. The root directory is the one for
-     * whom validation was requested with the <i>directory</i>
-     * {@link Parameters} field.
-     */
-    private String rootDirPath;
-
-    /**
      * Command line entry point.
      *
      * @return exit code
      */
     @Override
     public Integer call() {
-        Instant start = Instant.now();
-        File dir;
+        final Instant start = Instant.now();
+        final File dir;
 
         if (directory == null || !(dir = new File(directory)).isDirectory()) {
             return Utils.processExitAndCalculateTime(
@@ -191,8 +177,6 @@ final class ValidateCommand implements Callable<Integer> {
                     "Please specify directory for validation!"
             );
         }
-
-        rootDirPath = dir.getAbsolutePath();
 
         if (dbPath == null) {
             dbPath = System.getenv(Defaults.DATABASE_ENVIRONMENT_NAME);
@@ -206,8 +190,18 @@ final class ValidateCommand implements Callable<Integer> {
             }
         }
 
+        if (Utils.initReportFile(reportFileName) != 0) {
+            return Utils.processExitAndCalculateTime(
+                    start,
+                    3,
+                    "Failed to create report file!"
+            );
+        }
+
+        final BackupDatabase database;
+
         try {
-            database = BackupDatabase.BackupDatabaseBuilder.builder()
+            database = BackupDatabase.Builder.builder()
                     .setPassword(password)
                     .setUsername(user)
                     .setName(dbPath)
@@ -221,17 +215,13 @@ final class ValidateCommand implements Callable<Integer> {
             );
         }
 
-        if (Utils.initReportFile(reportFileName) != 0) {
-            return Utils.processExitAndCalculateTime(
-                    start,
-                    3,
-                    "Failed to create report file!"
-            );
-        }
+        final String rootDirPath = dir.getAbsolutePath();
 
-        prepareReportFile();
+        prepareReportFile(rootDirPath);
 
-        Utils.traverseDirectoryRecursively(dir, file -> {
+        final TaskScheduler<File> scheduler = new TaskScheduler<>(maxThreads);
+
+        Utils.processDirectory(dir, scheduler, file -> {
             if (verbose) Logger.info("Validating file: " + file.getName());
 
             String relativePath = Utils.resolveAbsoluteParentPathFromChild(rootDirPath, file);
@@ -252,13 +242,6 @@ final class ValidateCommand implements Callable<Integer> {
                 Logger.error("SQL exception while validating: " + e.getMessage());
             } catch (IOException e) {
                 Logger.error("IO exception while validating: " + e.getMessage());
-            }
-        }, (directory, processing) -> {
-            if (verbose || directoryOutput) {
-                String message = processing
-                        ? "Validating directory: "
-                        : "Finished validating directory: ";
-                Logger.info(message + directory.getName());
             }
         });
 
@@ -289,8 +272,12 @@ final class ValidateCommand implements Callable<Integer> {
 
     /**
      * Prepares the report file by writing the header information.
+     *
+     * @param rootDirPath The root directory path being validated.
      */
-    private void prepareReportFile() {
+    private void prepareReportFile(
+            String rootDirPath
+    ) {
         Utils.writeReport(reportFileName, "==================== VALIDATION REPORT ===================");
         Utils.writeReport(reportFileName, "Report generated on: " + LocalDateTime.now());
         Utils.writeReport(reportFileName, "Directory: " + rootDirPath);

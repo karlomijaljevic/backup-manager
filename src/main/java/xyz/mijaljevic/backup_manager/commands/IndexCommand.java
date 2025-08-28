@@ -21,17 +21,20 @@ import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 import picocli.CommandLine.Parameters;
 import xyz.mijaljevic.backup_manager.Defaults;
-import xyz.mijaljevic.backup_manager.utilities.Utils;
-import xyz.mijaljevic.backup_manager.utilities.Logger;
 import xyz.mijaljevic.backup_manager.database.BackupDatabase;
-import xyz.mijaljevic.backup_manager.database.BackupDatabase.BackupDatabaseBuilder;
+import xyz.mijaljevic.backup_manager.database.BackupDatabase.Builder;
 import xyz.mijaljevic.backup_manager.database.BackupFile;
+import xyz.mijaljevic.backup_manager.utilities.Logger;
+import xyz.mijaljevic.backup_manager.utilities.TaskScheduler;
+import xyz.mijaljevic.backup_manager.utilities.Utils;
 
 import java.io.File;
 import java.io.IOException;
 import java.sql.SQLException;
 import java.time.Instant;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.Callable;
 
 /**
@@ -47,17 +50,17 @@ import java.util.concurrent.Callable;
         usageHelpAutoWidth = true,
         descriptionHeading = "%nDescription:%n",
         description = """
-                      Indexes a directory against a database. If no database
-                      name is provided the command generates a new database
-                      during the indexing process in the working directory
-                      named backup.db.
-                      
-                      The database username and password are optional. If not
-                      provided, the command will use the default values for
-                      the database. The default values are:
-                      - username: backup
-                      - password: backup
-                      """,
+                Indexes a directory against a database. If no database
+                name is provided the command generates a new database
+                during the indexing process in the working directory
+                named backup.db.
+                
+                The database username and password are optional. If not
+                provided, the command will use the default values for
+                the database. The default values are:
+                - username: backup
+                - password: backup
+                """,
         optionListHeading = "%nIndex Options:%n",
         parameterListHeading = "%nParameters:%n",
         exitCodeListHeading = "%nExit Codes:%n",
@@ -105,26 +108,42 @@ final class IndexCommand implements Callable<Integer> {
     @Option(
             names = {"-v", "--verbose"},
             description = """
-                          Enable verbose output. This will print the name of
-                          each file as it is indexed. If you wish to print only
-                          directory names, use the -d option.
-                          """
+                    Enable verbose output. This will print the name of
+                    each file as it is indexed.
+                    """
     )
     boolean verbose;
 
-    /**
-     * Directory output option. If enabled, the command will print the name
-     * of each directory as it is indexed.
-     */
     @Option(
-            names = {"-d", "--directory"},
+            names = {"--no-update"},
             description = """
-                          Enable directory output. This will print the name of
-                          each directory as it is indexed. If you wish to print
-                          file names as well, use the -v option.
-                          """
+                    Disable updating existing entries in the database.
+                    If a file already exists in the database, it will
+                    not be updated with new information.
+                    """
     )
-    boolean directoryOutput;
+    boolean noUpdate;
+
+    @Option(
+            names = {"--remove-missing"},
+            paramLabel = "REMOVE_MISSING",
+            description = """
+                    Remove entries from the database that are no longer
+                    present in the indexed directory.
+                    """
+    )
+    boolean removeMissing;
+
+    @Option(
+            names = {"-t", "--threads"},
+            paramLabel = "MAX_THREADS",
+            description = """
+                    Maximum number of threads to use for indexing.
+                    Default half of the number of available processors
+                    rounded up. Minimum is 1.
+                    """
+    )
+    int maxThreads;
 
     /**
      * Directory pathname to index.
@@ -136,23 +155,6 @@ final class IndexCommand implements Callable<Integer> {
     String directory;
 
     /**
-     * A {@link BackupDatabase} initialized during the {@link #call()} method.
-     */
-    private BackupDatabase database;
-
-    /**
-     * Absolute path of the root directory. The root directory is the one for
-     * whom indexing was requested with the <i>directory</i> {@link Parameters}
-     * field.
-     */
-    private String rootDirPath;
-
-    /**
-     * {@link Tika} instance used to detect file MIME types.
-     */
-    private Tika tika;
-
-    /**
      * The main method of the {@link IndexCommand} class. It is called
      * when the command is executed.
      *
@@ -160,8 +162,8 @@ final class IndexCommand implements Callable<Integer> {
      */
     @Override
     public Integer call() {
-        Instant start = Instant.now();
-        File dir;
+        final Instant start = Instant.now();
+        final File dir;
 
         if (directory == null || !(dir = new File(directory)).isDirectory()) {
             return Utils.processExitAndCalculateTime(
@@ -171,9 +173,8 @@ final class IndexCommand implements Callable<Integer> {
             );
         }
 
-        rootDirPath = dir.getAbsolutePath();
-
-        tika = new Tika();
+        final String rootDirPath = dir.getAbsolutePath();
+        final Tika tika = new Tika();
 
         if (dbPath == null) {
             dbPath = System.getenv(Defaults.DATABASE_ENVIRONMENT_NAME);
@@ -183,65 +184,137 @@ final class IndexCommand implements Callable<Integer> {
             }
         }
 
+        final BackupDatabase database;
+        final List<Long> existingIds;
+
         try {
-            database = BackupDatabaseBuilder.builder()
+            database = Builder.builder()
                     .setPassword(password)
                     .setUsername(user)
                     .setName(dbPath)
                     .build();
-
-            Utils.traverseDirectoryRecursively(dir, file -> {
-                try {
-                    if (verbose) Logger.info("Indexing file: " + file.getName());
-
-                    String path = Utils.resolveAbsoluteParentPathFromChild(rootDirPath, file);
-
-                    BackupFile backupFile = database.findByPath(path);
-
-                    if (backupFile != null) {
-                        backupFile.setHash(Utils.generateCrc32Checksum(file));
-                        backupFile.setType(tika.detect(file));
-                        backupFile.setUpdated(LocalDateTime.now());
-
-                        database.update(backupFile);
-                    } else {
-                        backupFile = new BackupFile();
-
-                        backupFile.setName(file.getName());
-                        backupFile.setHash(Utils.generateCrc32Checksum(file));
-                        backupFile.setPath(Utils.resolveAbsoluteParentPathFromChild(rootDirPath, file));
-                        backupFile.setType(tika.detect(file));
-                        backupFile.setCreated(LocalDateTime.now());
-
-                        database.save(backupFile);
-                    }
-                } catch (IOException | SQLException e) {
-                    Logger.error("Error while indexing file: " + file.getAbsolutePath() + " - " + e.getMessage());
-                }
-            }, (directory, processing) -> {
-                if (verbose || directoryOutput) {
-                    String message = processing
-                            ? "Indexing directory: "
-                            : "Finished indexing directory: ";
-                    Logger.info(message + directory.getName());
-                }
-            });
         } catch (SQLException e) {
             return Utils.processExitAndCalculateTime(
                     start,
                     2,
                     "Database error: " + e.getMessage()
             );
-        } finally {
-            if (database != null) {
-                database.close();
-            }
         }
+
+        if (removeMissing) {
+            try {
+                existingIds = database.listAllIds();
+            } catch (SQLException e) {
+                database.close();
+
+                return Utils.processExitAndCalculateTime(
+                        start,
+                        2,
+                        "Database error: " + e.getMessage()
+                );
+            }
+        } else {
+            existingIds = new ArrayList<>();
+        }
+
+        final TaskScheduler<File> scheduler = new TaskScheduler<>(maxThreads);
+
+        Logger.info("Staring to index directory: " + rootDirPath);
+
+        Utils.processDirectory(dir, scheduler, file -> {
+            try {
+                if (verbose) Logger.info("Indexing file: " + file.getName());
+
+                String path = Utils.resolveAbsoluteParentPathFromChild(
+                        rootDirPath,
+                        file
+                );
+
+                BackupFile backupFile = database.findByPath(path);
+
+                if (backupFile != null) {
+                    if (noUpdate) return;
+
+                    backupFile.setHash(Utils.generateCrc32Checksum(file));
+                    backupFile.setType(tika.detect(file));
+                    backupFile.setUpdated(LocalDateTime.now());
+
+                    database.update(backupFile);
+
+                    if (removeMissing) existingIds.remove(backupFile.getId());
+                } else {
+                    backupFile = new BackupFile();
+
+                    backupFile.setName(file.getName());
+                    backupFile.setHash(Utils.generateCrc32Checksum(file));
+                    backupFile.setPath(Utils.resolveAbsoluteParentPathFromChild(
+                            rootDirPath,
+                            file
+                    ));
+                    backupFile.setType(tika.detect(file));
+                    backupFile.setCreated(LocalDateTime.now());
+
+                    database.save(backupFile);
+                }
+            } catch (IOException | SQLException e) {
+                Logger.error("Error while indexing file: "
+                        + file.getAbsolutePath()
+                        + " - "
+                        + e.getMessage()
+                );
+            }
+        });
+
+        scheduler.shutdown();
+
+        if (removeMissing) removeMissing(database, existingIds);
+
+        database.close();
 
         return Utils.processExitAndCalculateTime(
                 start,
                 0,
                 "Successfully indexed directory: " + rootDirPath
         );
+    }
+
+    /**
+     * Remove files from the database that are no longer present
+     * in the indexed directory.
+     *
+     * @param database    The database to remove files from.
+     * @param existingIds List of IDs of files that are no longer present.
+     */
+    private void removeMissing(
+            BackupDatabase database,
+            List<Long> existingIds
+    ) {
+        if (database == null || existingIds == null) {
+            return;
+        }
+
+        for (Long id : existingIds) {
+            try {
+                if (database.delete(id)) {
+                    Logger.info(
+                            "Missing file with ID "
+                                    + id
+                                    + " removed from database."
+                    );
+                } else {
+                    Logger.error(
+                            "Failed to remove missing file with ID "
+                                    + id
+                                    + " from database."
+                    );
+                }
+            } catch (SQLException e) {
+                Logger.error("Database error while removing missing file with ID "
+                        + id
+                        + ": "
+                        + e.getMessage()
+                );
+            }
+        }
     }
 }

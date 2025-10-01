@@ -1,18 +1,24 @@
 /**
  * Copyright (C) 2025 Karlo Mijaljević
+ *
  * <p>
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
+ * </p>
+ *
  * <p>
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
+ * </p>
+ *
  * <p>
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ * </p>
  */
 package xyz.mijaljevic.backup_manager.commands;
 
@@ -25,7 +31,6 @@ import xyz.mijaljevic.backup_manager.database.BackupDatabase;
 import xyz.mijaljevic.backup_manager.database.BackupDatabase.Builder;
 import xyz.mijaljevic.backup_manager.database.BackupFile;
 import xyz.mijaljevic.backup_manager.utilities.Logger;
-import xyz.mijaljevic.backup_manager.utilities.TaskScheduler;
 import xyz.mijaljevic.backup_manager.utilities.Utils;
 
 import java.io.File;
@@ -39,10 +44,12 @@ import java.util.concurrent.Callable;
 
 /**
  * Subcommand for indexing a directory against a database.
+ *
  * <p>
  * This command will index the provided directory and all of its
  * subdirectories. If no database is provided, a new one will be created
  * in the working directory named backup.db.
+ * </p>
  */
 @Command(
         name = "index",
@@ -134,17 +141,6 @@ final class IndexCommand implements Callable<Integer> {
     )
     boolean removeMissing;
 
-    @Option(
-            names = {"-t", "--threads"},
-            paramLabel = "MAX_THREADS",
-            description = """
-                    Maximum number of threads to use for indexing.
-                    Default half of the number of available processors
-                    rounded up. Minimum is 1.
-                    """
-    )
-    int maxThreads;
-
     /**
      * Directory pathname to index.
      */
@@ -217,11 +213,9 @@ final class IndexCommand implements Callable<Integer> {
             existingIds = new ArrayList<>();
         }
 
-        final TaskScheduler<File> scheduler = new TaskScheduler<>(maxThreads);
-
         Logger.info("Staring to index directory: " + rootDirPath);
 
-        Utils.processDirectory(dir, scheduler, file -> {
+        Utils.processDirectory(dir, file -> {
             try {
                 if (verbose) Logger.info("Indexing file: " + file.getName());
 
@@ -264,8 +258,6 @@ final class IndexCommand implements Callable<Integer> {
                 );
             }
         });
-
-        scheduler.shutdown();
 
         if (removeMissing) removeMissing(database, existingIds);
 

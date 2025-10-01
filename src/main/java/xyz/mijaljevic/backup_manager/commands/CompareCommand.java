@@ -1,18 +1,24 @@
 /**
  * Copyright (C) 2025 Karlo Mijaljević
+ *
  * <p>
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
+ * </p>
+ *
  * <p>
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
+ * </p>
+ *
  * <p>
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ * </p>
  */
 package xyz.mijaljevic.backup_manager.commands;
 
@@ -20,7 +26,6 @@ import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 import picocli.CommandLine.Parameters;
 import xyz.mijaljevic.backup_manager.utilities.Logger;
-import xyz.mijaljevic.backup_manager.utilities.TaskScheduler;
 import xyz.mijaljevic.backup_manager.utilities.Utils;
 
 import java.io.File;
@@ -32,11 +37,13 @@ import java.util.concurrent.Callable;
  * CompareCommand is a command-line utility that compares two directories and
  * generates a report of the differences. The report can be saved to a file or
  * printed to the console.
+ *
  * <p>
  * The command can also be used to copy files that are different in the second
  * directory compared to the first directory. This is done by using the
  * --copy-on-diff option. Take heed that this option will overwrite the files
  * on the second directory if they are different. Use with caution.
+ * </p>
  */
 @Command(
         name = "compare",
@@ -121,17 +128,6 @@ final class CompareCommand implements Callable<Integer> {
     )
     boolean copyOnDiff;
 
-    @Option(
-            names = {"-t", "--threads"},
-            paramLabel = "MAX_THREADS",
-            description = """
-                    Maximum number of threads to use for indexing.
-                    Default half of the number of available processors
-                    rounded up. Minimum is 1.
-                    """
-    )
-    int maxThreads;
-
     /**
      * Directory pathnames to compare.
      */
@@ -201,18 +197,14 @@ final class CompareCommand implements Callable<Integer> {
 
         prepareReportFile(baseDirAbsolutePath, otherDirAbsolutePath);
 
-        final TaskScheduler<File> scheduler = new TaskScheduler<>(maxThreads);
-
         compareBaseToOther(
                 base,
-                scheduler,
                 baseDirAbsolutePath,
                 otherDirAbsolutePath
         );
 
         compareOtherToBase(
                 other,
-                scheduler,
                 baseDirAbsolutePath,
                 otherDirAbsolutePath
         );
@@ -230,17 +222,15 @@ final class CompareCommand implements Callable<Integer> {
      * copyOnDiff option is enabled.
      *
      * @param base                 The base directory.
-     * @param scheduler            The task scheduler for parallel processing.
      * @param baseDirAbsolutePath  The absolute path of the base directory.
      * @param otherDirAbsolutePath The absolute path of the other directory.
      */
     private void compareBaseToOther(
             File base,
-            TaskScheduler<File> scheduler,
             String baseDirAbsolutePath,
             String otherDirAbsolutePath
     ) {
-        Utils.processDirectory(base, scheduler, file -> {
+        Utils.processDirectory(base, file -> {
             if (verbose) Logger.info("Comparing file: " + file.getName());
 
             String relativePath = Utils.resolveAbsoluteParentPathFromChild(
@@ -278,17 +268,15 @@ final class CompareCommand implements Callable<Integer> {
      * Logs extra files found in the other directory.
      *
      * @param other                The other directory.
-     * @param scheduler            The task scheduler for parallel processing.
      * @param baseDirAbsolutePath  The absolute path of the base directory.
      * @param otherDirAbsolutePath The absolute path of the other directory.
      */
     private void compareOtherToBase(
             File other,
-            TaskScheduler<File> scheduler,
             String baseDirAbsolutePath,
             String otherDirAbsolutePath
     ) {
-        Utils.processDirectory(other, scheduler, file -> {
+        Utils.processDirectory(other, file -> {
             if (verbose) {
                 Logger.info("Checking for extra file: " + file.getName());
             }

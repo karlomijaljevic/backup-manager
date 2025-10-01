@@ -1,18 +1,24 @@
 /**
  * Copyright (C) 2025 Karlo Mijaljević
+ *
  * <p>
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
+ * </p>
+ *
  * <p>
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
+ * </p>
+ *
  * <p>
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ * </p>
  */
 package xyz.mijaljevic.backup_manager;
 
@@ -32,7 +38,9 @@ public final class Defaults {
      * Default H2 database name to use in case there is no user provided
      * database pathname.
      */
-    public static final String DATABASE_NAME = resolveDefaultDatabaseName();
+    public static final String DATABASE_NAME = "."
+            + FileSystems.getDefault().getSeparator()
+            + "backup.db";
 
     /**
      * Default database username.
@@ -60,23 +68,7 @@ public final class Defaults {
     public static final DateTimeFormatter EXPORT_DATA_FORMAT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
     /**
-     * Default number of threads to use for file operations.
-     *
-     * <p>
-     * This is set to half the number of available processors to balance
-     * performance and resource usage.
-     * </p>
+     * Maximum number of concurrent tasks to run.
      */
-    public static final int THREAD_NUMBER = (int) Math.ceil(
-            Runtime.getRuntime().availableProcessors() / 2.0
-    );
-
-    /**
-     * Resolve the default database name based on the FS separator.
-     *
-     * @return The default database name.
-     */
-    private static String resolveDefaultDatabaseName() {
-        return "." + FileSystems.getDefault().getSeparator() + "backup.db";
-    }
+    public static final int MAX_CONCURRENT_TASKS = 1000;
 }

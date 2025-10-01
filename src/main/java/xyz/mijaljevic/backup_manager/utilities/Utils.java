@@ -1,18 +1,24 @@
 /**
  * Copyright (C) 2025 Karlo Mijaljević
+ *
  * <p>
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
+ * </p>
+ *
  * <p>
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
+ * </p>
+ *
  * <p>
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ * </p>
  */
 package xyz.mijaljevic.backup_manager.utilities;
 
@@ -57,7 +63,7 @@ public final class Utils {
      * @param str the string to check
      * @return true if the string is null or empty, false otherwise
      */
-    public static boolean isStringEmpty(String str) {
+    public static boolean isStringEmpty(final String str) {
         return str == null || str.isEmpty();
     }
 
@@ -69,7 +75,14 @@ public final class Utils {
      * @param child  The child file
      * @return The relative path to the child file from the parent.
      */
-    public static String resolveAbsoluteParentPathFromChild(String parent, File child) {
+    public static String resolveAbsoluteParentPathFromChild(
+            final String parent,
+            final File child
+    ) {
+        if (parent == null || parent.isEmpty()) {
+            throw new IllegalArgumentException("Parent path cannot be null or empty!");
+        }
+
         return child.getAbsolutePath().replace(parent, "");
     }
 
@@ -80,11 +93,17 @@ public final class Utils {
      * @return The CRC-32 checksum as a hexadecimal string
      * @throws IOException If an I/O error occurs
      */
-    public static String generateCrc32Checksum(File file) throws IOException {
-        CRC32 crc = new CRC32();
+    public static String generateCrc32Checksum(
+            final File file
+    ) throws IOException {
+        if (file == null || !file.exists() || !file.isFile()) {
+            throw new IllegalArgumentException("File is null, does not exist, or is not a file!");
+        }
+
+        final CRC32 crc = new CRC32();
 
         try (FileInputStream fis = new FileInputStream(file)) {
-            byte[] buffer = new byte[BUFFER_SIZE];
+            final byte[] buffer = new byte[BUFFER_SIZE];
             int bytesRead;
 
             while ((bytesRead = fis.read(buffer)) != -1) {
@@ -99,33 +118,21 @@ public final class Utils {
      * Processes a directory and all of its subdirectories recursively. For
      * each file in a directory, the provided file callback is called.
      *
-     * <p>
-     * The file callback is scheduled to be executed by the provided task
-     * scheduler. This allows for concurrent processing of files.
-     * </p>
-     *
      * @param directory    The root directory to traverse.
-     * @param scheduler    The {@link TaskScheduler} to use for scheduling
-     *                     file processing tasks.
      * @param fileCallback The {@link Consumer} callback to call for each
      *                     file. The parameter is the file to process.
      */
     public static void processDirectory(
-            File directory,
-            TaskScheduler<File> scheduler,
-            Consumer<File> fileCallback
+            final File directory,
+            final Consumer<File> fileCallback
     ) {
-        File[] files = directory.listFiles();
-
-        if (files == null) return;
-
-        for (File file : files) {
-            if (file.isDirectory()) {
-                processDirectory(file, scheduler, fileCallback);
-            } else {
-                scheduler.schedule(fileCallback, file);
-            }
+        if (directory == null) {
+            throw new IllegalArgumentException("Directory cannot be null!");
         }
+
+        processDirectoryRecursively(directory, fileCallback);
+
+        TaskScheduler.shutdown();
     }
 
     /**
@@ -168,13 +175,13 @@ public final class Utils {
      * @param reportContent  The content to be printed.
      */
     public static void writeReport(
-            String reportFileName,
-            String reportContent
+            final String reportFileName,
+            final String reportContent
     ) {
         if (reportFileName == null) {
             Logger.info(reportContent);
         } else {
-            File fileToWrite = new File(reportFileName);
+            final File fileToWrite = new File(reportFileName);
 
             if (!fileToWrite.exists()) {
                 Logger.error("Error: File does not exist.");
@@ -208,9 +215,13 @@ public final class Utils {
      * @throws SQLException If a database error occurs
      */
     public static void workOnDatabaseFiles(
-            BackupDatabase database,
-            Consumer<BackupFile> callback
+            final BackupDatabase database,
+            final Consumer<BackupFile> callback
     ) throws SQLException {
+        if (database == null || callback == null) {
+            throw new IllegalArgumentException("Database and callback cannot be null!");
+        }
+
         final long count = database.count();
         final int pageSize = 100;
         long position = 0;
@@ -228,10 +239,12 @@ public final class Utils {
      * Reports the exit code and calculates the time taken for the program to
      * execute. It also prints a message indicating the duration of the
      * program.
+     *
      * <p>
      * Depending on the exit code, it will print the message to either the
      * standard output or the error output stream. Any non-zero exit code
      * indicates an error.
+     * </p>
      *
      * @param start    The start time of the program
      * @param exitCode The exit code of the program
@@ -239,18 +252,18 @@ public final class Utils {
      * @return The exit code of the program
      */
     public static int processExitAndCalculateTime(
-            Instant start,
-            int exitCode,
-            String message
+            final Instant start,
+            final int exitCode,
+            final String message
     ) {
-        long duration = Duration.between(start, Instant.now()).toMillis();
+        final long duration = Duration.between(start, Instant.now()).toMillis();
 
-        long hours = duration / 3600000;
-        long minutes = (duration % 3600000) / 60000;
-        long seconds = (duration % 60000) / 1000;
-        long millis = duration % 1000;
+        final long hours = duration / 3600000;
+        final long minutes = (duration % 3600000) / 60000;
+        final long seconds = (duration % 60000) / 1000;
+        final long millis = duration % 1000;
 
-        StringBuilder response = new StringBuilder("Program lasted for ");
+        final StringBuilder response = new StringBuilder("Program lasted for ");
         boolean hasPrevious = false;
 
         if (hours > 0) {
@@ -280,25 +293,37 @@ public final class Utils {
     /**
      * Copies a file from the source to the destination. If the destination
      * file already exists, it will be truncated before copying.
+     *
      * <p>
      * This method uses a buffer to copy the file in chunks, which is more
      * efficient than copying the file in one go. Furthermore, it creates
      * the destination directory if it does not exist and all parent
      * directories.
+     * </p>
+     *
      * <p>
      * It will not copy empty directories, only files.
+     * </p>
      *
      * @param source      The source file to copy
      * @param destination The destination file to copy to
      * @return true if the copy was successful, false otherwise
      */
-    public static boolean copyFile(File source, File destination) {
-        String destDirPath = destination.getAbsolutePath().substring(
+    public static boolean copyFile(
+            final File source,
+            final File destination
+    ) {
+        if (source == null || destination == null) {
+            Logger.error("Source or destination file is null.");
+            return false;
+        }
+
+        final String destDirPath = destination.getAbsolutePath().substring(
                 0,
                 destination.getAbsolutePath().lastIndexOf(File.separator)
         );
 
-        File destinationDirectory = new File(destDirPath);
+        final File destinationDirectory = new File(destDirPath);
 
         if (!destinationDirectory.exists()) {
             try {
@@ -310,20 +335,20 @@ public final class Utils {
         }
 
         try (
-                FileChannel inChannel = new FileInputStream(source.getAbsolutePath()).getChannel();
-                FileChannel outChannel = FileChannel.open(
+                final FileChannel inChannel = new FileInputStream(source.getAbsolutePath()).getChannel();
+                final FileChannel outChannel = FileChannel.open(
                         destination.toPath(),
                         StandardOpenOption.CREATE,
                         StandardOpenOption.WRITE,
                         StandardOpenOption.TRUNCATE_EXISTING
                 )
         ) {
-            long size = inChannel.size();
+            final long size = inChannel.size();
             long position = 0;
 
             while (position < size) {
-                long bytesToTransfer = Math.min(BUFFER_SIZE, size - position);
-                long transferred = inChannel.transferTo(
+                final long bytesToTransfer = Math.min(BUFFER_SIZE, size - position);
+                final long transferred = inChannel.transferTo(
                         position,
                         bytesToTransfer,
                         outChannel
@@ -336,6 +361,33 @@ public final class Utils {
         } catch (IOException e) {
             Logger.error("Error copying file: " + source.getName());
             return false;
+        }
+    }
+
+    /**
+     * Helper method to process a directory recursively.
+     *
+     * @param directory    The directory to process
+     * @param fileCallback The callback to call for each file
+     */
+    private static void processDirectoryRecursively(
+            final File directory,
+            final Consumer<File> fileCallback
+    ) {
+        if (directory == null) {
+            throw new IllegalArgumentException("Directory cannot be null!");
+        }
+
+        final File[] files = directory.listFiles();
+
+        if (files == null) return;
+
+        for (File file : files) {
+            if (file.isDirectory()) {
+                processDirectoryRecursively(file, fileCallback);
+            } else {
+                TaskScheduler.schedule(fileCallback, file);
+            }
         }
     }
 }

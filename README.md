@@ -34,7 +34,7 @@ The project is in a working state. The following features are implemented:
 - Validating a directory against the H2 database and reporting differences
 - Exporting the H2 database to an `.xlsx` file
 
-The project is built using Java 21 and Maven. The dependencies are managed
+The project is built using Java 25 and Maven. The dependencies are managed
 using Maven. The project uses the following dependencies:
 
 - H2 Database Engine

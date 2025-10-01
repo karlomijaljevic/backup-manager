@@ -1,18 +1,24 @@
 /**
  * Copyright (C) 2025 Karlo Mijaljević
+ *
  * <p>
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
+ * </p>
+ *
  * <p>
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
+ * </p>
+ *
  * <p>
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ * </p>
  */
 package xyz.mijaljevic.backup_manager.commands;
 
@@ -23,7 +29,6 @@ import xyz.mijaljevic.backup_manager.Defaults;
 import xyz.mijaljevic.backup_manager.database.BackupDatabase;
 import xyz.mijaljevic.backup_manager.database.BackupFile;
 import xyz.mijaljevic.backup_manager.utilities.Logger;
-import xyz.mijaljevic.backup_manager.utilities.TaskScheduler;
 import xyz.mijaljevic.backup_manager.utilities.Utils;
 
 import java.io.File;
@@ -35,10 +40,12 @@ import java.util.concurrent.Callable;
 
 /**
  * Command for validating a directory against a backup database.
+ *
  * <p>
  * This command checks if the files in the specified directory exist in the
  * backup database and if their checksums match. It generates a report of the
  * validation results.
+ * </p>
  */
 @Command(
         name = "validate",
@@ -140,17 +147,6 @@ final class ValidateCommand implements Callable<Integer> {
     )
     boolean verbose;
 
-    @Option(
-            names = {"-t", "--threads"},
-            paramLabel = "MAX_THREADS",
-            description = """
-                    Maximum number of threads to use for indexing.
-                    Default half of the number of available processors
-                    rounded up. Minimum is 1.
-                    """
-    )
-    int maxThreads;
-
     /**
      * Directory pathname to validate.
      */
@@ -219,44 +215,17 @@ final class ValidateCommand implements Callable<Integer> {
 
         prepareReportFile(rootDirPath);
 
-        final TaskScheduler<File> scheduler = new TaskScheduler<>(maxThreads);
-
-        Utils.processDirectory(dir, scheduler, file -> {
-            if (verbose) Logger.info("Validating file: " + file.getName());
-
-            String relativePath = Utils.resolveAbsoluteParentPathFromChild(rootDirPath, file);
-
-            try {
-                BackupFile backupFile = database.findByPath(relativePath);
-
-                if (backupFile == null) {
-                    Utils.writeReport(reportFileName, "EXTRA: " + relativePath);
-                } else {
-                    String checksum = Utils.generateCrc32Checksum(file);
-
-                    if (!checksum.equals(backupFile.getHash())) {
-                        Utils.writeReport(reportFileName, "DIFF: " + relativePath);
-                    }
-                }
-            } catch (SQLException e) {
-                Logger.error("SQL exception while validating: " + e.getMessage());
-            } catch (IOException e) {
-                Logger.error("IO exception while validating: " + e.getMessage());
-            }
-        });
+        processDirectory(
+                dir,
+                rootDirPath,
+                database
+        );
 
         try {
-            Utils.workOnDatabaseFiles(database, backupFile -> {
-                String sanitizeRootPath = rootDirPath.charAt(rootDirPath.length() - 1) == '/'
-                        ? rootDirPath.substring(0, rootDirPath.length() - 1)
-                        : rootDirPath;
-
-                File file = new File(sanitizeRootPath + backupFile.getPath());
-
-                if (!file.exists()) {
-                    Utils.writeReport(reportFileName, "MISS: " + backupFile.getPath());
-                }
-            });
+            workOnDatabaseFiles(
+                    database,
+                    rootDirPath
+            );
         } catch (SQLException e) {
             Logger.error("SQL exception while validating: " + e.getMessage());
         } finally {
@@ -268,6 +237,69 @@ final class ValidateCommand implements Callable<Integer> {
                 0,
                 "Successfully validated directory: " + rootDirPath
         );
+    }
+
+    /**
+     * Processes a directory and validates its files against the backup
+     * database.
+     *
+     * @param dir         The directory to process.
+     * @param rootDirPath The root directory path being validated.
+     * @param database    The backup database to validate against.
+     */
+    private void processDirectory(
+            final File dir,
+            final String rootDirPath,
+            final BackupDatabase database
+    ) {
+        Utils.processDirectory(dir, file -> {
+            if (verbose) Logger.info("Validating file: " + file.getName());
+
+            final String relativePath = Utils.resolveAbsoluteParentPathFromChild(rootDirPath, file);
+
+            try {
+                final BackupFile backupFile = database.findByPath(relativePath);
+
+                if (backupFile == null) {
+                    Utils.writeReport(reportFileName, "EXTRA: " + relativePath);
+                } else {
+                    final String checksum = Utils.generateCrc32Checksum(file);
+
+                    if (!checksum.equals(backupFile.getHash())) {
+                        Utils.writeReport(reportFileName, "DIFF: " + relativePath);
+                    }
+                }
+            } catch (SQLException e) {
+                Logger.error("SQL exception while validating: " + e.getMessage());
+            } catch (IOException e) {
+                Logger.error("IO exception while validating: " + e.getMessage());
+            }
+        });
+    }
+
+    /**
+     * Works on the database files and checks if they exist in the
+     * specified directory. If a file is missing, it is reported.
+     *
+     * @param database    The backup database to work on.
+     * @param rootDirPath The root directory path being validated.
+     * @throws SQLException If an SQL error occurs while accessing the database.
+     */
+    private void workOnDatabaseFiles(
+            final BackupDatabase database,
+            final String rootDirPath
+    ) throws SQLException {
+        Utils.workOnDatabaseFiles(database, backupFile -> {
+            final String sanitizeRootPath = rootDirPath.charAt(rootDirPath.length() - 1) == '/'
+                    ? rootDirPath.substring(0, rootDirPath.length() - 1)
+                    : rootDirPath;
+
+            final File file = new File(sanitizeRootPath + backupFile.getPath());
+
+            if (!file.exists()) {
+                Utils.writeReport(reportFileName, "MISS: " + backupFile.getPath());
+            }
+        });
     }
 
     /**
